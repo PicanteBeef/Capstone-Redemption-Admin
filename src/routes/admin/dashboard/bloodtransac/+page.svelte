@@ -1,4 +1,4 @@
-<!-- Blood requests lands here. -->
+<!-- Blood transactions lands here. -->
 
 <script>
     import { onMount } from "svelte";
@@ -65,12 +65,12 @@
       data = [record[0], ...data];
     }
   
-      //Fetch Blood Inventory Data
+      //Fetch Blood Transaction Data
     onMount(async () => {
       const { data: records, error } = await supabase
-        .from("blood_requests")
+        .from("blood_transactions")
         .select("*")
-        .order("request_date", { ascending: false });
+        .order("transaction_date", { ascending: false });
   
       if (error) {
         console.error("Error fetching data from Supabase:", error);
@@ -255,7 +255,7 @@
           <!--Blood Inventory-->
           <div class="card mb-3 mx-1" id="blood-inventory">
             <div class="card-header text-danger">
-              <i class="fa fa-droplet" /> Blood Request
+              <i class="fa fa-droplet" /> Blood Transactions
             </div>
             <div class="card-body">
               <div class="table-responsive">
@@ -267,42 +267,30 @@
                 >
                   <thead>
                     <tr class="clearfix">
-                        <th>Serial ID<a href="#home"><i class="fa-solid fa-sort float-end text-dark" /></a></th>
-                        <th>Patient Name<a href="#home"><i class="fa-solid fa-sort float-end text-dark" /></a></th>
-                        <th>Patient Diagnosis<a href="#home"><i class="fa-solid fa-sort float-end text-dark" /></a></th>
-                        <th>Patient Blood Type<a href="#home"><i class="fa-solid fa-sort float-end text-dark" /></a></th>
-                        <th>Request Purpose<a href="#home"><i class="fa-solid fa-sort float-end text-dark" /></a></th>
-                        <th>Blood Pack Type<a href="#home"><i class="fa-solid fa-sort float-end text-dark" /></a></th>
-                        <th>Urgency<a href="#home"><i class="fa-solid fa-sort float-end text-dark" /></a></th>
-                        <th>Requested Quantity<a href="#home"><i class="fa-solid fa-sort float-end text-dark" /></a></th>
-                        <th>Date Requested<a href="#home"><i class="fa-solid fa-sort float-end text-dark" /></a></th>
+                        <th>Serial ID</th>
+                        <th>Blood Type</th>
+                        <th>Amount</th>
+                        <th>Transaction Date</th>
+                        <th>Transaction Type</th>
                     </tr>
                   </thead>
                   <tfoot>
                     <tr>
-                      <th>Serial ID</th>
-                      <th>Patient Name</th>
-                      <th>Patient Diagnosis</th>
-                      <th>Patient Blood Type</th>
-                      <th>Request Purpose</th>
-                      <th>Blood Pack Type</th>
-                      <th>Urgency</th>
-                      <th>Requested Quantity</th>
-                      <th>Date Requested</th>
+                        <th>Serial ID</th>
+                        <th>Blood Type</th>
+                        <th>Amount</th>
+                        <th>Transaction Date</th>
+                        <th>Transaction Type</th>
                     </tr>
                   </tfoot>
                   <tbody>
                     {#each data as item (item.id)}
                       <tr>
                         <td>{item.id}</td>
-                        <td>{item.patient_name}</td>
-                        <td>{item.patient_diagnosis}</td>
-                        <td>{item.patient_bloodtype}</td>
-                        <td>{item.request_purpose}</td>
-                        <td>{item.request_bloodpack}</td>
-                        <td>{item.request_urgency}</td>
-                        <td>{item.request_quantity}</td>
-                        <td>{moment(item.request_date).format("L • hh:mma")}</td>
+                        <td>{item.blood_type}</td>
+                        <td>{item.amount}</td>
+                        <td>{moment(item.transaction_date).format("L • hh:mma")}</td>
+                        <td>{item.transaction_type}</td>
                       </tr>
                     {/each}
                   </tbody>

@@ -1,21 +1,201 @@
 <script>
-  import { onMount } from 'svelte';
-  import supabase from '/src/lib/supabaseClient.js';
+  import { onMount } from "svelte";
+  import supabase from "/src/lib/supabaseClient.js";
+  import moment from "moment";
+
+  let formData = {
+    bloodType: "",
+    amount: 0,
+  };
 
   let data = [];
+  let data2 = [];
+  let data3 = [];
 
+  let APosCount, ANegCount, BPosCount, BNegCount, ABPosCount, ABNegCount, OPosCount, ONegCount = [];
+ 
+
+  // Insert Entry to Blood Inventory
+  async function handleSubmit(event) {
+    console.log(formData);
+    event.preventDefault();
+    // Calculate the expiry date by adding 42 days to the current date
+    const expiryDate = new Date();
+    expiryDate.setDate(expiryDate.getDate() + 42);
+
+    const { data: record, error } = await supabase
+      .from("blood_inventory")
+      .insert({
+        blood_type: formData.bloodType,
+        amount: formData.amount,
+        expiry: expiryDate,
+      }).select();
+
+    if (error) {
+      console.error("Error inserting data:", error);
+      return;
+    }
+
+    formData = {
+      bloodType: "",
+      amount: 0,
+    }
+
+    data = [record[0], ...data]
+  }
+
+  // Delete Entry From Blood Inventory
+  async function deleteOne(itemToDelete) {
+    console.log(itemToDelete);
+
+    const { error } = await supabase
+      .from("blood_inventory")
+      .delete()
+      .eq("id", itemToDelete);
+
+    if (error) {
+      console.error("Error", error);
+    } else {
+      data = data.filter((item) => item.id !== itemToDelete);
+    }
+  }
+
+  //Fetch Blood Inventory Data
   onMount(async () => {
-      const { data: records, error } = await supabase
-      .from('blood_inventory')
-      .select('*')
-      .order('entry_date', {ascending: false})
+    const { data: records, error } = await supabase
+      .from("blood_inventory")
+      .select("*")
+      .order("entry_date", { ascending: false })
       .limit(10);
-      
-      if (error) {
-          console.error('Error fetching data from Supabase:', error);
-      } else {
-          data = records;
-      }
+
+    // Fetch Blood Transactions Data
+    const { data: records2, error2 } = await supabase
+      .from("blood_transactions")
+      .select("*")
+      .order("id", { ascending: false })
+      .limit(5);
+
+    // Fetch Blood Requests Data
+    const { data: records3, error3 } = await supabase
+      .from("blood_requests")
+      .select("*")
+      .order("id", { ascending: false })
+      .limit(5);
+
+    // Catch Errors
+    if (error) {
+      console.error("Error fetching data", error);
+    } else {
+      data = records;
+    }
+
+    if (error2) {
+      console.error("Error fetching data", error2);
+    } else {
+      data2 = records2;
+    }
+
+    if (error3) {
+      console.error("Error fetching data", error3);
+    } else {
+      data3 = records3;
+    }
+
+    // A+ Records
+    const { data: countDataA, error: countErrorA } = await supabase
+      .from("blood_inventory")
+      .select('count', { count: 'exact' })
+      .filter('blood_type', 'in', '("A+")');
+
+    if (countErrorA) {
+          console.error("Error fetching data", countErrorA);
+        } else {
+          APosCount = countDataA[0]?.count || 0;
+        }
+
+    // A- Records
+    const { data: countDataA1, error: countErrorA1 } = await supabase
+      .from("blood_inventory")
+      .select('count', { count: 'exact' })
+      .filter('blood_type', 'in', '("A-")');
+
+    if (countErrorA1) {
+          console.error("Error fetching data", countErrorA1);
+        } else {
+          ANegCount = countDataA1[0]?.count || 0;
+        }
+    
+    // B+ Records
+    const { data: countDataB, error: countErrorB } = await supabase
+      .from("blood_inventory")
+      .select('count', { count: 'exact' })
+      .filter('blood_type', 'in', '("B+")');
+
+    if (countErrorB) {
+          console.error("Error fetching data", countErrorB);
+        } else {
+          BPosCount = countDataB[0]?.count || 0;
+        }
+
+    // B- Records
+    const { data: countDataB1, error: countErrorB1 } = await supabase
+      .from("blood_inventory")
+      .select('count', { count: 'exact' })
+      .filter('blood_type', 'in', '("B-")');
+
+    if (countErrorB1) {
+          console.error("Error fetching data", countErrorB1);
+        } else {
+          BNegCount = countDataB1[0]?.count || 0;
+        }
+    
+    // AB+ Records
+    const { data: countDataAB, error: countErrorAB } = await supabase
+      .from("blood_inventory")
+      .select('count', { count: 'exact' })
+      .filter('blood_type', 'in', '("AB+")');
+
+    if (countErrorAB) {
+          console.error("Error fetching data", countErrorAB);
+        } else {
+          ABPosCount = countDataAB[0]?.count || 0;
+        }
+
+    // AB- Records
+    const { data: countDataAB1, error: countErrorAB1 } = await supabase
+      .from("blood_inventory")
+      .select('count', { count: 'exact' })
+      .filter('blood_type', 'in', '("AB-")');
+
+    if (countErrorAB1) {
+          console.error("Error fetching data", countErrorAB1);
+        } else {
+          ABNegCount = countDataAB1[0]?.count || 0;
+        }
+
+    // O+ Records
+    const { data: countDataO, error: countErrorO } = await supabase
+      .from("blood_inventory")
+      .select('count', { count: 'exact' })
+      .filter('blood_type', 'in', '("O+")');
+
+    if (countErrorO) {
+          console.error("Error fetching data", countErrorO);
+        } else {
+          OPosCount = countDataO[0]?.count || 0;
+        }
+
+    // O- Records
+    const { data: countDataO1, error: countErrorO1 } = await supabase
+      .from("blood_inventory")
+      .select('count', { count: 'exact' })
+      .filter('blood_type', 'in', '("O-")');
+
+    if (countErrorO1) {
+          console.error("Error fetching data", countErrorO1);
+        } else {
+          ONegCount = countDataAB1[0]?.count || 0;
+        }
   });
 </script>
 
@@ -65,16 +245,6 @@
           filter: blur(0);
           transform: translateX(0);
         }
-    }
-
-
-    .bd-placeholder-img {
-      font-size: 1.125rem;
-      text-anchor: middle;
-      -webkit-user-select: none;
-      -moz-user-select: none;
-      -ms-user-select: none;
-      user-select: none;
     }
 
     .nav-hover {
@@ -140,13 +310,13 @@
         <div class="collapse navbar-collapse" id="navbarCollapse">
           <ul style="width: 100%;" class="navbar-nav mr-auto mb-2 mb-md-0 ">
             <li class="nav-item">
-              <a class="nav-link nav-hover text-light" href="/admin/dashboard/newscontrol">News Control</a>
-            </li>
-            <li class="nav-item">
               <a class="nav-link nav-hover text-light" href="/admin/dashboard/inventory">Inventory</a>
             </li>
             <li class="nav-item">
               <a class="nav-link nav-hover text-light" href="/admin/dashboard/bloodrequests">Blood Requests</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link nav-hover text-light" href="/admin/dashboard/bloodtransac">Blood Transactions</a>
             </li>
           </ul>
           <a href="/" style="font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;font-weight: bold;" class="btn btn-danger">Logout</a> 
@@ -180,7 +350,7 @@
                   <div class="card-body-icon">
                     <i class="fa fa-droplet"> A+</i>
                   </div>
-                  <div class="mr-5">11 Packs</div>
+                  <div class="mr-5">{APosCount} Bags</div>
                 </div>
               </div>
       
@@ -189,9 +359,7 @@
                   <div class="card-body-icon">
                     <i class="fa fa-droplet"> A-</i>
                   </div>
-                  <div class="mr-5">
-                    11 Packs  
-                  </div>
+                  <div class="mr-5">{ANegCount} Bags</div>
                 </div>
               </div>
             </div>
@@ -215,7 +383,7 @@
                   <div class="card-body-icon">
                     <i class="fa fa-droplet"> B+</i>
                   </div>
-                  <div class="mr-5">11 Packs</div>
+                  <div class="mr-5">{BPosCount} Bags</div>
                 </div>
               </div>
     
@@ -224,9 +392,7 @@
                   <div class="card-body-icon">
                     <i class="fa fa-droplet"> B-</i>
                   </div>
-                  <div class="mr-5">
-                    11 Packs  
-                  </div>
+                  <div class="mr-5">{BNegCount} Bags</div>
                 </div>
               </div>
             </div>
@@ -250,7 +416,7 @@
                 <div class="card-body-icon">
                   <i class="fa fa-droplet"> AB+</i>
                 </div>
-                <div class="mr-5">11 Packs</div>
+                <div class="mr-5">{ABPosCount} Bags</div>
               </div>
             </div>
     
@@ -259,9 +425,7 @@
                 <div class="card-body-icon">
                   <i class="fa fa-droplet"> AB-</i>
                 </div>
-                <div class="mr-5">
-                  11 Packs  
-                </div>
+                <div class="mr-5">{ABNegCount} Bags</div>
               </div>
             </div>
           </div>
@@ -285,7 +449,7 @@
                 <div class="card-body-icon">
                   <i class="fa fa-droplet"> O+</i>
                 </div>
-                <div class="mr-5">11 Packs</div>
+                <div class="mr-5">{OPosCount} Bags</div>
               </div>
             </div>
     
@@ -294,9 +458,7 @@
                 <div class="card-body-icon">
                   <i class="fa fa-droplet"> O-</i>
                 </div>
-                <div class="mr-5">
-                  11 Packs  
-                </div>
+                <div class="mr-5">{ONegCount} Bags</div>
               </div>
             </div>
           </div>
@@ -322,53 +484,42 @@
                           <table class="table table-bordered" width="100%" cellspacing="0">
                             <thead>
                               <tr class="clearfix">
+                                <th>ID</th>
                                 <th>Entry Type</th>
                                 <th>Blood Type</th>
                                 <th>Date</th>
-                                <th>Time</th>
                                 <th>Amount</th>
                               </tr>
                             </thead>
                             <tfoot>
                               <tr>
+                                <th>ID</th>
                                 <th>Entry Type</th>
                                 <th>Blood Type</th>
                                 <th>Date</th>
-                                <th>Time</th>
                                 <th>Amount</th>
                               </tr>
                             </tfoot>
                             <tbody>
+                              {#each data2 as item (item.id)}
                               <tr>
-                                <td>Blood In</td>
-                                <td>B+</td>
-                                <td>07/12/2023</td>
-                                <td>09:34</td>
-                                <td>5 packs | 1500cc</td>
+                                  <td>{item.id}</td>
+                                  <td>{item.transaction_type}</td>
+                                  <td>{item.blood_type}</td>
+                                  <td>{moment(item.transaction_date).format("L • hh:mma")}</td>
+                                  <td>{item.amount} • {item.amount * 450} CC</td>
                               </tr>
-                              <tr>
-                                <td>Blood In</td>
-                                <td>AB+</td>
-                                <td>07/01/2023</td>
-                                <td>12:30</td>
-                                <td>3 packs | 900cc</td>
-                              </tr>
-                              <tr>
-                                <td>Blood Out</td>
-                                <td>O-</td>
-                                <td>06/24/2023</td>
-                                <td>16:25</td>
-                                <td>7 packs | 2100cc</td>
-                              </tr>
+                              {/each}
                             </tbody>
                           </table>
-                          <a class="btn btn-danger" href="#home">View More <i class="fa fa-angle-right"></i></a>
+                          <a class="btn btn-danger" href="/admin/dashboard/bloodtransac">View More <i class="fa fa-angle-right"></i></a>
                         </div>
                     </div>
                   </div>
                   <div class="card-footer small text-danger">Last update: mm/dd/yyyy hh:mm</div>
                 </div>
 
+                <!--Requests Section-->
                 <div class="card mb-3 col mx-1">
                   <div class="card-header text-danger">
                     <i class="fa fa-bar-chart"></i> Blood Requests</div>
@@ -378,42 +529,35 @@
                           <table class="table table-bordered" width="100%" cellspacing="0">
                             <thead>
                               <tr class="clearfix">
-                                <th>Request</th>
-                                <th>Date</th>
-                                <th>Time</th>
-                                <th>Status</th>
+                                <th>ID</th>
+                                <th>Request Blood Type</th>
+                                <th>Request Urgency</th>
+                                <th>Date Requested</th>
+                                <th>Request Quantity</th>
                               </tr>
                             </thead>
                             <tfoot>
                               <tr>
-                                <th>Request</th>
-                                <th>Date</th>
-                                <th>Time</th>
-                                <th>Status</th>
+                                <th>ID</th>
+                                <th>Request Blood Type</th>
+                                <th>Request Urgency</th>
+                                <th>Date Requested</th>
+                                <th>Request Quantity</th>
                               </tr>
                             </tfoot>
                             <tbody>
+                              {#each data3 as item (item.id)}
                               <tr>
-                                <td>Blood In</td>
-                                <td>B+</td>
-                                <td>07/12/2023</td>
-                                <td>09:34</td>
+                                  <td>{item.id}</td>
+                                  <td>{item.patient_bloodtype}</td>
+                                  <td>{item.request_urgency}</td>
+                                  <td>{moment(item.request_date).format("L • hh:mma")}</td>
+                                  <td>{item.request_quantity}</td>
                               </tr>
-                              <tr>
-                                <td>Blood In</td>
-                                <td>AB+</td>
-                                <td>07/01/2023</td>
-                                <td>12:30</td>
-                              </tr>
-                              <tr>
-                                <td>Blood Out</td>
-                                <td>O-</td>
-                                <td>06/24/2023</td>
-                                <td>16:25</td>
-                              </tr>
+                              {/each}
                             </tbody>
                           </table>
-                          <a class="btn btn-danger" href="#home">View More <i class="fa fa-angle-right"></i></a>
+                          <a class="btn btn-danger" href="/admin/dashboard/bloodrequests">View More <i class="fa fa-angle-right"></i></a>
                         </div>
                     </div>
                   </div>
@@ -428,7 +572,7 @@
       <div class="card mb-3 mx-1" id="blood-inventory">
         <div class="card-header text-danger">
           <i class="fa fa-droplet"></i> Blood Inventory
-          <button class="btn btn-danger float-end">New Entry</button>
+          <a href="/admin/dashboard/inventory" class="btn btn-danger float-end">More Details</a>
 
         </div>
         <div class="card-body">
@@ -441,7 +585,6 @@
                   <th>Amount<a href="#home"><i class="fa-solid fa-sort float-end text-dark"></i></a></th>
                   <th>Expiration<a href="#home"><i class="fa-solid fa-sort float-end text-dark"></i></a></th>
                   <th>Date Entry<a href="#home"><i class="fa-solid fa-sort float-end text-dark"></i></a></th>
-                  <th>Action</th>
                 </tr>
               </thead>
               <tfoot>
@@ -451,7 +594,6 @@
                   <th>Amount</th>
                   <th>Expiration</th>
                   <th>Date Entry</th>
-                  <th>Action</th>
                 </tr>
               </tfoot>
               <tbody>
@@ -459,23 +601,21 @@
                 <tr>
                     <td>{item.id}</td>
                     <td>{item.blood_type}</td>
-                    <td>{item.int}</td>
-                    <td>{item.expiry}</td>
-                    <td>{item.entry_date}</td>
-                    <td>
-                      <a href="#home"><i class="fa-solid fa-trash fs-5 text-danger"></i></a> 
-                      <a href="#home"><i class="fa-solid fa-pen-to-square fs-5 text-danger"></i></a>
-                    </td>
+                    <td>{item.amount}</td>
+                    <td>{moment(item.expiry).format("L • hh:mma")}</td>
+                    <td>{moment(item.entry_date).format("L • hh:mma")}</td>
                 </tr>
                 {/each}
               </tbody>
             </table>
           </div>
         </div>
-        <div class="card-footer small text-danger">Last update: mm/dd/yyyy hh:mm</div>
+        <div class="card-footer small text-danger">
+          Last Update: {data.entry_date}
+        </div>
       </div>
 
-      <!--Donor Table-->
+      <!-- Donor Table
       <div class="card mb-3 mx-1">
         <div class="card-header text-danger">
           <i class="fa fa-table"></i> Donor Info</div>
@@ -552,7 +692,7 @@
           </div>
         </div>
         <div class="card-footer small text-danger">Last update: mm/dd/yyyy hh:mm</div>
-      </div>
+      </div> -->
 
       
     </div>
@@ -561,7 +701,7 @@
     <footer class="sticky-footer">
       <div class="container">
         <div class="text-center text-danger">
-          <small>For Capstone use only. Not official website.</small>
+          <small>For Capstone use only.</small>
         </div>
       </div>
     </footer>
