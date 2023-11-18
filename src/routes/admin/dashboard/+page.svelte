@@ -330,6 +330,12 @@
             <li class="nav-item">
               <a class="nav-link nav-hover text-light" href="/admin/dashboard/bloodreqforms">Request Forms</a>
             </li>
+            <li class="nav-item">
+              <a
+                class="nav-link nav-hover text-light"
+                href="/admin/dashboard/donation">Donation Entries </a
+              >
+            </li>
           </ul>
           <a href="/" style="font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;font-weight: bold;" class="btn btn-danger">Logout</a> 
         </div>         
