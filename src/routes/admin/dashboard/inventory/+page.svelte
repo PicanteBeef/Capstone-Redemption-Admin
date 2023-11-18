@@ -255,6 +255,9 @@
                 href="/admin/dashboard/bloodtransac">Blood Transactions</a
               >
             </li>
+            <li class="nav-item">
+              <a class="nav-link nav-hover text-light" href="/admin/dashboard/bloodreqforms">Request Forms</a>
+            </li>
           </ul>
           <a
             href="/"
