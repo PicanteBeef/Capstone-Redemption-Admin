@@ -52,6 +52,22 @@
       return;
     }
 
+    const { data: record1, error1 } = await supabase
+      .from("blood_transactions")
+      .insert({
+        id: record[0].id,
+        blood_type: formData.bloodType,
+        amount: formData.amount,
+        transaction_date: record[0].entry_date,
+        transaction_type: "Blood In",
+      })
+      .select();
+
+    if (error1) {
+      console.error("Error inserting data:", error1);
+      return;
+    }
+
     formData = {
       bloodType: "",
       amount: 0,
