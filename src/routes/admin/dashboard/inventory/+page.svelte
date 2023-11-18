@@ -274,6 +274,9 @@
             <li class="nav-item">
               <a class="nav-link nav-hover text-light" href="/admin/dashboard/bloodreqforms">Request Forms</a>
             </li>
+            <li class="nav-item">
+              <a class="nav-link nav-hover text-light" href="/admin/dashboard/donations">Donations</a>
+            </li>
           </ul>
           <a
             href="/"

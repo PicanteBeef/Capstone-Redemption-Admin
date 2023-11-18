@@ -197,6 +197,7 @@
           ONegCount = countDataAB1[0]?.count || 0;
         }
   });
+
 </script>
 
 <html lang="en">
@@ -224,6 +225,9 @@
 
   <!--FontAwesome-->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+
+  <!--Charts.js Library-->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
   <style>
     html{
@@ -330,6 +334,9 @@
             <li class="nav-item">
               <a class="nav-link nav-hover text-light" href="/admin/dashboard/bloodreqforms">Request Forms</a>
             </li>
+            <li class="nav-item">
+              <a class="nav-link nav-hover text-light" href="/admin/dashboard/donations">Donations</a>
+            </li>
           </ul>
           <a href="/" style="font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;font-weight: bold;" class="btn btn-danger">Logout</a> 
         </div>         
@@ -343,86 +350,88 @@
 
     <!--Dashboard-->
     <div class="container text-center">
-      <div class="row">
+    <div class="row">
 
     <!--Bloodtype A Summary Card-->
-        <div class="col-xl-3 col-sm-6 mb-3">
-          <div class="card text-danger bg-light o-hidden">
-            <button type="button" class="btn btn-sm m-1 text-danger bg-light" id="dropdown-a" data-bs-toggle="collapse" data-bs-target="#collapse-a" aria-expanded="false" aria-controls="collapse-a">
-              <i class="fa fa-droplet"></i> <span class="fw-bold fs-6">Bloodtype: A</span>
-              <div class="clearfix card-footer bg-light w-100">
-                <span class="float-start fw-bold">View Summary</span>
-                <span class="float-end fw-bold"><i class="fa fa-angle-right"></i></span>
+    <div class="col-xl-3 col-sm-6 mb-3">
+      <div class="card text-danger bg-light o-hidden">
+        <button type="button" class="btn btn-sm m-1 text-danger bg-light" id="dropdown-a" aria-expanded="true" aria-controls="collapse-a">
+          <i class="fa fa-droplet"></i> <span class="fw-bold fs-6">Bloodtype: A</span>
+          <div class="clearfix card-footer bg-light w-100">
+            <span class="float-start fw-bold">View Summary</span>
+            <span class="float-end fw-bold"><i class="fa fa-angle-right"></i></span>
+          </div>
+        </button>
+    
+        <div class="row" id="collapse-a">
+          <div class="card col text-danger bg-light o-hidden h-100">
+            <div class="card-body">
+              <div class="card-body-icon">
+                <i class="fa fa-droplet"> A+</i>
               </div>
-            </button>
-      
-            <div class="collapse row" id="collapse-a">
-              <div class="card col text-danger bg-light o-hidden h-100">
-                <div class="card-body">
-                  <div class="card-body-icon">
-                    <i class="fa fa-droplet"> A+</i>
-                  </div>
-                  <div class="mr-5">{APosCount} Bags</div>
-                </div>
+              <div class="mr-5">{APosCount} Bags</div>
+            </div>
+          </div>
+    
+          <div class="card col text-danger bg-light o-hidden h-100">
+            <div class="card-body">
+              <div class="card-body-icon">
+                <i class="fa fa-droplet"> A-</i>
               </div>
+              <div class="mr-5">{ANegCount} Bags</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+
+      <!--Bloodtype B Summary Card-->
+      <div class="col-xl-3 col-sm-6 mb-3">
+        <div class="card text-danger bg-light o-hidden">
+          <button type="button" class="btn btn-sm m-1 text-danger bg-light" id="dropdown-b" aria-expanded="true" aria-controls="collapse-b">
+            <i class="fa fa-droplet"></i> <span class="fw-bold fs-6">Bloodtype: B</span>
+            <div class="clearfix card-footer bg-light w-100">
+              <span class="float-start fw-bold">View Summary</span>
+              <span class="float-end fw-bold"><i class="fa fa-angle-right"></i></span>
+            </div>
+          </button>
       
-              <div class="card col text-danger bg-light o-hidden h-100">
-                <div class="card-body">
-                  <div class="card-body-icon">
-                    <i class="fa fa-droplet"> A-</i>
-                  </div>
-                  <div class="mr-5">{ANegCount} Bags</div>
+          <div class="row" id="collapse-b">
+            <div class="card col text-danger bg-light o-hidden h-100">
+              <div class="card-body">
+                <div class="card-body-icon">
+                  <i class="fa fa-droplet"> B+</i>
                 </div>
+                <div class="mr-5">{BPosCount} Bags</div>
+              </div>
+            </div>
+      
+            <div class="card col text-danger bg-light o-hidden h-100">
+              <div class="card-body">
+                <div class="card-body-icon">
+                  <i class="fa fa-droplet"> B-</i>
+                </div>
+                <div class="mr-5">{BNegCount} Bags</div>
               </div>
             </div>
           </div>
         </div>
-
-      <!--Bloodtype B Summary Card-->
-          <div class="col-xl-3 col-sm-6 mb-3">
-            <div class="card text-danger bg-light o-hidden">
-              <button type="button" class="btn btn-sm m-1 text-danger bg-light" id="dropdown-b" data-bs-toggle="collapse" data-bs-target="#collapse-b" aria-expanded="false" aria-controls="collapse-b">
-                <i class="fa fa-droplet"></i> <span class="fw-bold fs-6">Bloodtype: B</span>
-                <div class="clearfix card-footer bg-light w-100">
-                  <span class="float-start fw-bold">View Summary</span>
-                  <span class="float-end fw-bold"><i class="fa fa-angle-right"></i></span>
-                </div>
-            </button>
-    
-            <div class="collapse row" id="collapse-b">
-              <div class="card col text-danger bg-light o-hidden h-100">
-                <div class="card-body">
-                  <div class="card-body-icon">
-                    <i class="fa fa-droplet"> B+</i>
-                  </div>
-                  <div class="mr-5">{BPosCount} Bags</div>
-                </div>
-              </div>
-    
-              <div class="card col text-danger bg-light o-hidden h-100">
-                <div class="card-body">
-                  <div class="card-body-icon">
-                    <i class="fa fa-droplet"> B-</i>
-                  </div>
-                  <div class="mr-5">{BNegCount} Bags</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>        
+      </div>
+              
 
       <!--Bloodtype AB Summary Card-->
       <div class="col-xl-3 col-sm-6 mb-3">
         <div class="card text-white bg-light o-hidden">
-          <button type="button" class="btn btn-sm m-1 text-danger bg-light" id="dropdown-ab" data-bs-toggle="collapse" data-bs-target="#collapse-ab" aria-expanded="false" aria-controls="collapse-ab">
+          <button type="button" class="btn btn-sm m-1 text-danger bg-light" id="dropdown-ab" aria-expanded="true" aria-controls="collapse-ab">
             <i class="fa fa-droplet"></i> <span class="fw-bold fs-6">Bloodtype: AB</span>
             <div class="clearfix card-footer bg-light w-100">
               <span class="float-start fw-bold">View Summary</span>
               <span class="float-end fw-bold"><i class="fa fa-angle-right"></i></span>
             </div>
           </button>
-    
-          <div class="collapse row" id="collapse-ab">
+      
+          <div class="row" id="collapse-ab">
             <div class="card col text-danger bg-light o-hidden h-100">
               <div class="card-body">
                 <div class="card-body-icon">
@@ -431,7 +440,7 @@
                 <div class="mr-5">{ABPosCount} Bags</div>
               </div>
             </div>
-    
+      
             <div class="card col text-danger bg-light o-hidden h-100">
               <div class="card-body">
                 <div class="card-body-icon">
@@ -443,19 +452,20 @@
           </div>
         </div>
       </div>
+      
 
       <!--Bloodtype O Summary Card-->
       <div class="col-xl-3 col-sm-6 mb-3">
         <div class="card text-white bg-light o-hidden">
-          <button type="button" class="btn btn-sm m-1 bg-light text-danger" id="dropdown-o" data-bs-toggle="collapse" data-bs-target="#collapse-o" aria-expanded="false" aria-controls="collapse-o">
+          <button type="button" class="btn btn-sm m-1 bg-light text-danger" id="dropdown-o" aria-expanded="true" aria-controls="collapse-o">
             <i class="fa fa-droplet"></i> <span class="fw-bold fs-6">Bloodtype: O</span>
             <div class="clearfix card-footer bg-light w-100">
               <span class="float-start fw-bold">View Summary</span>
               <span class="float-end fw-bold"><i class="fa fa-angle-right"></i></span>
             </div>
           </button>
-    
-          <div class="collapse row" id="collapse-o">
+      
+          <div class="row" id="collapse-o">
             <div class="card col text-danger bg-light o-hidden h-100">
               <div class="card-body">
                 <div class="card-body-icon">
@@ -464,7 +474,7 @@
                 <div class="mr-5">{OPosCount} Bags</div>
               </div>
             </div>
-    
+      
             <div class="card col text-danger bg-light o-hidden h-100">
               <div class="card-body">
                 <div class="card-body-icon">
@@ -476,6 +486,7 @@
           </div>
         </div>
       </div>
+      
         
       </div>
     </div>

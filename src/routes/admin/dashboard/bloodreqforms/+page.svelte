@@ -206,7 +206,16 @@
 
             <div class="mb-3">
               <label for="bloodType" class="form-label">Blood Type</label>
-              <input type="text" class="form-control" id="bloodType" bind:value={formData.bloodType} />
+              <select class="form-select" id="bloodType" bind:value={formData.bloodType}>
+                <option value="A+">A+</option>
+                <option value="A-">A-</option>
+                <option value="B+">B+</option>
+                <option value="B-">B-</option>
+                <option value="AB+">AB+</option>
+                <option value="AB-">AB-</option>
+                <option value="O+">O+</option>
+                <option value="O-">O-</option>
+              </select>
             </div>
 
             <div class="mb-3">
