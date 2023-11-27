@@ -296,7 +296,7 @@
           <!--Add Entry-->
           <div class="card mb-3 mx-1 bg-danger w-50 " id="addTo-inventory">
             <div class="card-header text-light bg-danger">
-              <i class="fa fa-droplet" /> Blood Donation Entries
+              <i class="fa fa-droplet" /> Blood Donations Entries
             </div>
             <div class="card-body bg-light rounded">
               <div class="d-flex justify-content-center rounded">
@@ -329,7 +329,7 @@
           <!--Blood Inventory-->
           <div class="card mb-3 mx-1" id="blood-inventory">
             <div class="card-header text-danger">
-              <i class="fa fa-droplet" /> Blood Donation Inventory
+              <i class="fa fa-droplet" /> Blood Donations Inventory
             </div>
             <div class="card-body">
               <div class="table-responsive">
