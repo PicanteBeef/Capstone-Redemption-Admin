@@ -9,27 +9,20 @@
   let data = [];
   let bloodBags = [];
   let bloodTypeCounts = {};
-  let notification = null;
 
   // Fetch Blood Requests Data
-  const fetchData = async () => {
-    try {
-      const { data: records, error } = await supabase
-        .from("blood_requests")
-        .select("*")
-        .order("request_date", { ascending: false });
+  onMount(async () => {
+    const { data: records, error } = await supabase
+      .from("blood_requests")
+      .select("*")
+      .order("request_date", { ascending: false });
 
-      if (error) {
-        console.error("Error fetching data from Supabase:", error);
-      } else {
-        data = records;
-      }
-    } catch (error) {
-      console.error("An unexpected error occurred:", error);
+    if (error) {
+      console.error("Error fetching data from Supabase:", error);
+    } else {
+      data = records;
     }
-  };
-
-  onMount(fetchData);
+  });
 
   // Fetch Blood Inventory Data
   onMount(async () => {
@@ -136,76 +129,6 @@
       }
     });
   };
-
-  let patientName = "";
-  let diagnosis = "";
-  let bloodType = "";
-  let purpose = "";
-  let bloodPackType = "";
-  let urgency = "";
-  let bagQuantity = "";
-
-  const handleSubmit = async () => {
-  // Validate the form data (replace this with your validation logic)
-  if (!patientName || !diagnosis || !bloodType || !purpose || !bloodPackType || !urgency || !bagQuantity) {
-    setNotification({ type: "error", message: "Please fill in all fields." });
-    return;
-  }
-
-  try {
-    // Submit the form data to Supabase
-    const { data, error } = await supabase.from("blood_requests").upsert([
-      {
-        patient_name: patientName,
-        patient_diagnosis: diagnosis,
-        patient_bloodtype: bloodType,
-        request_purpose: purpose,
-        request_bloodpack: bloodPackType,
-        request_urgency: urgency,
-        request_quantity: bagQuantity,
-        request_date: new Date(),
-      },
-    ]);
-
-    if (error) {
-      console.error("Error submitting data:", error);
-      setNotification({ type: "error", message: "Error submitting data." });
-    } else {
-      console.log("Data submitted successfully:", data);
-      setNotification({ type: "success", message: "Entry submitted successfully." });
-
-      // Optionally, you can reload the page or fetch updated data here
-      setTimeout(() => {
-        location.reload();
-      }, 2000);
-    }
-  } catch (error) {
-    console.error("Error submitting data:", error);
-    setNotification({ type: "error", message: "Error submitting data." });
-  }
-};
-
-  const deleteRow = async (id) => {
-    if (confirm("Are you sure you want to delete this row?")) {
-      try {
-        const { error } = await supabase
-          .from("blood_requests")
-          .delete()
-          .eq("id", id);
-
-        if (error) {
-          console.error("Error deleting row from Supabase:", error);
-        } else {
-          console.log("Row deleted successfully");
-          // Update the local state or trigger a re-fetch of the data
-          fetchData(); // Assuming you have a fetchData function to fetch data again
-        }
-      } catch (error) {
-        console.error("An unexpected error occurred:", error);
-      }
-    }
-  };
-
 </script>
 
 <head>
@@ -501,6 +424,16 @@
                     <th>Action</th>
                   </tr>
                 </thead>
+                <tfoot>
+                  <tr>
+                    <th>Serial ID</th>
+                    <th>Patient Blood Type</th>
+                    <th>Urgency</th>
+                    <th>Requested Quantity</th>
+                    <th>Date Requested</th>
+                    <th>Action</th>
+                  </tr>
+                </tfoot>
                 <tbody>
                   {#each data as item (item.id)}
                   <tr>
@@ -509,11 +442,6 @@
                     <td>{item.request_urgency}</td>
                     <td>{item.request_quantity}</td>
                     <td>{moment(item.request_date).format("L • hh:mma")}</td>
-                    <td>
-                      <button class="btn btn-danger rounded" on:click={() => deleteRow(item.id)}>
-                        Delete
-                      </button>
-                    </td>
                     <td>
                       <button class="btn btn-danger rounded" on:click={() => openModal(item)}>
                         Review Request
@@ -710,87 +638,6 @@
             </div>
           {/if}
         </div>
-        <!-- Notification Section -->
-        {#if notification}
-          <div class={`alert alert-${notification.type}`} role="alert">
-            {notification.message}
-          </div>
-        {/if}
-        <!-- end of notifications-->
-
-        <!-- Entries Form -->
-        <div class="card mb-3 mx-1" id="blood-request-form">
-          <div class="card-header text-danger">
-            <i class="fa fa-droplet" /> Blood Request Form
-          </div>
-          <div class="card-body">
-            <form on:submit={handleSubmit}>
-              <div class="row">
-                <!-- Column 1 -->
-                <div class="col-md-6">
-                  <div class="mb-3">
-                    <label for="patientName" class="form-label">Patient Name</label>
-                    <input type="text" class="form-control" id="patientName" bind:value={patientName} required />
-                  </div>
-                  <div class="mb-3">
-                    <label for="diagnosis" class="form-label">Diagnosis</label>
-                    <input type="text" class="form-control" id="diagnosis" bind:value={diagnosis} required />
-                  </div>
-                  <div class="mb-3">
-                    <label for="bloodType" class="form-label">Blood Type</label>
-                    <select class="form-control" id="bloodType" bind:value={bloodType} required>
-                      <option value="A+">A+</option>
-                      <option value="A-">A-</option>
-                      <option value="B+">B+</option>
-                      <option value="B-">B-</option>
-                      <option value="AB+">AB+</option>
-                      <option value="AB-">AB-</option>
-                      <option value="O+">O+</option>
-                      <option value="O-">O-</option>
-                    </select>
-                  </div>
-                  <div class="mb-3">
-                    <label for="purpose" class="form-label">Purpose</label>
-                    <select class="form-control" id="purpose" bind:value={purpose} required>
-                      <option value="Routine">Routine</option>
-                      <option value="Emergency">Emergency</option>
-                      <option value="Surgery">Surgery</option>
-                    </select>
-                  </div>
-                </div>
-                <!-- Column 2 -->
-                <div class="col-md-6">
-                  <div class="mb-3">
-                    <label for="bloodPackType" class="form-label">Blood Pack Type</label>
-                    <select class="form-control" id="bloodPackType" bind:value={bloodPackType} required>
-                      <option value="Whole">Whole</option>
-                      <option value="Packed Red Cell">Packed Red Cell</option>
-                      <option value="Washed Red Cell">Washed Red Cell</option>
-                      <option value="Platelet Concentrate">Platelet Concentrate</option>
-                      <option value="Fresh Frozen Plasma">Fresh Frozen Plasma</option>
-                    </select>
-                  </div>
-                  <div class="mb-3">
-                    <label for="urgency" class="form-label">Urgency</label>
-                    <select class="form-control" id="urgency" bind:value={urgency} required>
-                      <option value="Low (1000m)">Low (1000m)</option>
-                      <option value="Medium (300-600m)">Medium (300-600m)</option>
-                      <option value="High (60-180m)">High (60-180m)</option>
-                    </select>
-                  </div>
-                  <div class="mb-3">
-                    <label for="bagQuantity" class="form-label">Bag Quantity</label>
-                    <input type="number" class="form-control" id="bagQuantity" bind:value={bagQuantity} required />
-                  </div>
-                </div>
-              </div>
-              <button type="submit" class="btn btn-danger">Submit Request</button>
-            </form>
-          </div>
-        </div>
-        <!--End of entries form-->
-
-        <!--footer-->
         <footer class="sticky-footer">
           <div class="container">
             <div class="text-center text-danger">

@@ -1,324 +1,642 @@
 <!-- Blood requests lands here. -->
 
 <script>
-    import { onMount } from "svelte";
-    import supabase from "/src/lib/supabaseClient.js";
-    import moment from "moment";
-  
-    let formData = {
-      bloodType: "",
-      amount: 0,
-      entryDate: "",
-    };
-  
-    let data = [];
-    let data1 = [];
-  
-    // Insert Entry to Blood Inventory
-    async function handleSubmit(event) {
-      console.log(formData);
-      event.preventDefault();
-      // Calculate the expiry date by adding 42 days to the current date
-      const entryDate = new Date(formData.entryDate);
-      const expiryDate = new Date(formData.entryDate);
-      expiryDate.setDate(expiryDate.getDate() + 42);
-  
-      const { data: record, error } = await supabase
-        .from("blood_inventory")
-        .insert({
-          blood_type: formData.bloodType,
-          amount: formData.amount,
-          entry_date: entryDate,
-          expiry: expiryDate,
-        })
-        .select();
-  
-      if (error) {
-        console.error("Error inserting data:", error);
-        return;
-      }
-  
-      formData = {
-        bloodType: "",
-        amount: 0,
-        entryDate: "",
-      };
-  
-      data = [record[0], ...data];
+  import { onMount } from "svelte";
+  import supabase from "/src/lib/supabaseClient.js";
+  import moment from "moment";
+  import { createEventDispatcher } from "svelte";
+
+  let data = [];
+  let bloodBags = [];
+  let bloodTypeCounts = {};
+
+  // Fetch Blood Requests Data
+  onMount(async () => {
+    const { data: records, error } = await supabase
+      .from("blood_requests")
+      .select("*")
+      .order("request_date", { ascending: false });
+
+    if (error) {
+      console.error("Error fetching data from Supabase:", error);
+    } else {
+      data = records;
     }
-  
-    // Delete Entry From Blood Inventory
-    async function deleteOne(itemToDelete) {
-      console.log(itemToDelete);
-  
-      const { error } = await supabase
-        .from("blood_inventory")
-        .delete()
-        .eq("id", itemToDelete);
-  
-      if (error) {
-        console.error("Error", error);
-      } else {
-        data = data.filter((item) => item.id !== itemToDelete);
-      }
-  
-      data = [record[0], ...data];
+  });
+
+  // Fetch Blood Inventory Data
+  onMount(async () => {
+    const { data: records, error } = await supabase
+      .from("blood_inventory")
+      .select("*")
+      .order("blood_type", { ascending: true });
+
+    if (error) {
+      console.error("Error fetching data from Supabase:", error);
+    } else {
+      bloodBags = records;
+      calculateTotalBloodBags();
     }
-  
-      //Fetch Blood Inventory Data
-    onMount(async () => {
-      const { data: records, error } = await supabase
-        .from("blood_requests")
-        .select("*")
-        .order("request_date", { ascending: false });
-  
-      if (error) {
-        console.error("Error fetching data from Supabase:", error);
+  });
+
+  const calculateTotalBloodBags = () => {
+    bloodTypeCounts = {};
+
+    bloodBags.forEach((bag) => {
+      const bloodType = bag.blood_type;
+      bloodTypeCounts[bloodType] = (bloodTypeCounts[bloodType] || 0) + bag.amount;
+    });
+  };
+
+  // Modal Functions
+  let requestDetails;
+  let remarks = "";
+  let isOpen = false;
+
+  let rowStatus = new Map();
+  const rowStatusUpdate = new Map(rowStatus);
+
+  const dispatch = createEventDispatcher();
+
+  const openModal = (item) => {
+    requestDetails = item;
+    isOpen = true;
+  };
+
+  const closeModal = () => {
+    isOpen = false;
+    dispatch("modalClosed");
+  };
+
+  const handleCheckButtonClick = async () => {
+    // Transfer data to another table
+    const { id } = requestDetails;
+    const { data, error } = await supabase
+      .from("blood_requests_releasing")
+      .upsert([
+        {
+          id: id,
+          patient_name: requestDetails.patient_name,
+          patient_diagnosis: requestDetails.patient_diagnosis,
+          patient_bloodtype: requestDetails.patient_bloodtype,
+          request_purpose: requestDetails.request_purpose,
+          request_bloodpack: requestDetails.request_bloodpack,
+          request_urgency: requestDetails.request_urgency,
+          request_quantity: requestDetails.request_quantity,
+          request_date: requestDetails.request_date,
+          request_remarks: remarks,
+        },
+      ]);
+
+    if (error) {
+      console.error("Error transferring data:", error);
+      return;
+    }
+    console.log("Accepted!");
+    rowStatusUpdate.set(requestDetails.id, { action: "accept" });
+    rowStatus = rowStatusUpdate;
+  };
+
+  const handleXMarkButtonClick = async () => {
+    // Additional logic for x-mark button if needed
+    const { id } = requestDetails;
+    console.log("Denied!");
+    rowStatusUpdate.set(requestDetails.id, { action: "reject" });
+    rowStatus = rowStatusUpdate;
+  };
+
+  let sortColumn = "";
+  let sortDirection = 1; // 1 for ascending, -1 for descending
+
+  const sortTable = (column) => {
+    if (column === sortColumn) {
+      // Reverse the sort direction if the same column is clicked
+      sortDirection = -sortDirection;
+    } else {
+      // Set the new sort column and reset the direction
+      sortColumn = column;
+      sortDirection = 1;
+    }
+
+    data = data.slice().sort((a, b) => {
+      const valueA = a[column];
+      const valueB = b[column];
+
+      if (typeof valueA === 'string' && typeof valueB === 'string') {
+        return sortDirection * valueA.localeCompare(valueB);
       } else {
-        data = records;
+        return sortDirection * (valueA - valueB);
       }
     });
-  </script>
-  
-  <head>
-    <meta charset="utf-8" />
-    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-    <meta
-      name="viewport"
-      content="width=device-width, initial-scale=1, shrink-to-fit=no"
-    />
-    <meta name="description" content="" />
-    <meta name="author" content="" />
-    <title>B.D.M.S | Admin</title>
-  
-    <!-- Latest compiled and minified CSS -->
-    <link
-      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
-      rel="stylesheet"
-    />
-    <script
-      src="https://stackpath.bootstrapcdn.com/bootstrap/5.0.0-alpha1/js/bootstrap.min.js"
-      integrity="sha384-oesi62hOLfzrys4LxRF63OJCXdXDipiYWBnvTl9Y9/TRlw5xlKIEHpNyvvDShgf/"
-      crossorigin="anonymous"
-    ></script>
-  
-    <!-- Latest compiled JavaScript -->
-    <!-- Latest compiled JavaScript -->
-    <script
-      src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"
-    ></script>
-  
-    <!--Latest complied Popperjs-->
-    <!--Latest complied Popperjs-->
-    <script
-      src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.8/dist/umd/popper.min.js"
-      integrity="sha384-I7E8VVD/ismYTF4hNIPjVp/Zjvgyol6VFvRkX/vR+Vc4jQkC+hVqc2pM8ODewa9r"
-      crossorigin="anonymous"
-    ></script>
-  
-    <!--FontAwesome-->
-    <link
-      rel="stylesheet"
-      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
-      integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw=="
-      crossorigin="anonymous"
-      referrerpolicy="no-referrer"
-    />
-  
-    <style>
-      html {
-        scroll-behavior: smooth;
+  };
+</script>
+
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1, shrink-to-fit=no"
+  />
+  <meta name="description" content="" />
+  <meta name="author" content="" />
+  <title>B.D.M.S | Admin</title>
+
+  <!-- Latest compiled and minified CSS -->
+  <link
+    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+    rel="stylesheet"
+  />
+  <script
+    src="https://stackpath.bootstrapcdn.com/bootstrap/5.0.0-alpha1/js/bootstrap.min.js"
+    integrity="sha384-oesi62hOLfzrys4LxRF63OJCXdXDipiYWBnvTl9Y9/TRlw5xlKIEHpNyvvDShgf/"
+    crossorigin="anonymous"
+  ></script>
+
+  <!-- Latest compiled JavaScript -->
+  <!-- Latest compiled JavaScript -->
+  <!-- Latest compiled JavaScript -->
+  <!-- Latest compiled JavaScript -->
+  <!-- Latest compiled JavaScript -->
+  <!-- Latest compiled JavaScript -->
+  <!-- Latest compiled JavaScript -->
+  <script
+    src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"
+  ></script>
+
+  <!--Latest complied Popperjs-->
+  <!--Latest complied Popperjs-->
+  <!--Latest complied Popperjs-->
+  <!--Latest complied Popperjs-->
+  <!--Latest complied Popperjs-->
+  <!--Latest complied Popperjs-->
+  <!--Latest complied Popperjs-->
+  <script
+    src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.8/dist/umd/popper.min.js"
+    integrity="sha384-I7E8VVD/ismYTF4hNIPjVp/Zjvgyol6VFvRkX/vR+Vc4jQkC+hVqc2pM8ODewa9r"
+    crossorigin="anonymous"
+  ></script>
+
+  <!--FontAwesome-->
+  <link
+    rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw=="
+    crossorigin="anonymous"
+    referrerpolicy="no-referrer"
+  />
+
+  <style>
+    html {
+      scroll-behavior: smooth;
+    }
+
+    main {
+      animation: fadeIn 0.5s;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        filter: blur(5px);
+        transform: translateX(-5px);
       }
-  
-      main {
-        animation: fadeIn 0.5s;
+      to {
+        opacity: 1;
+        filter: blur(0);
+        transform: translateX(0);
       }
-  
-      @keyframes fadeIn {
-        from {
-          opacity: 0;
-          filter: blur(5px);
-          transform: translateX(-5px);
-        }
-        to {
-          opacity: 1;
-          filter: blur(0);
-          transform: translateX(0);
-        }
-      }
-  
-      .nav-hover {
-        display: inline-block;
-        padding-bottom: 2px;
-        background-image: linear-gradient(#ffffff 0 0);
-        background-position: 0 100%; /*OR bottom left*/
-        background-size: 0% 2px;
-        background-repeat: no-repeat;
-        transition: background-size 0.3s, background-position 0s 0.3s; /*change after the size immediately*/
-      }
-  
-      .nav-hover:hover {
-        background-position: 100% 100%; /*OR bottom right*/
-        background-size: 100% 2px;
-      }
-  
-      ::-webkit-scrollbar {
-        width: 9px;
-        background: transparent;
-      }
-  
-      ::-webkit-scrollbar-track {
-        background-color: #a11f1f55;
-      }
-  
-      ::-webkit-scrollbar-thumb {
-        border-radius: 3px;
-        background: #9a1818;
-      }
-  
-      ::-webkit-scrollbar-thumb:hover {
-        border-radius: 3px;
-        background: #741212;
-      }
-  
+    }
+
+    .nav-hover {
+      display: inline-block;
+      padding-bottom: 2px;
+      background-image: linear-gradient(#ffffff 0 0);
+      background-position: 0 100%; /*OR bottom left*/
+      background-size: 0% 2px;
+      background-repeat: no-repeat;
+      transition:
+        background-size 0.3s,
+        background-position 0s 0.3s; /*change after the size immediately*/
+    }
+
+    .nav-hover:hover {
+      background-position: 100% 100%; /*OR bottom right*/
+      background-size: 100% 2px;
+    }
+
+    ::-webkit-scrollbar {
+      width: 9px;
+      background: transparent;
+    }
+
+    ::-webkit-scrollbar-track {
+      background-color: #a11f1f55;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      border-radius: 3px;
+      background: #9a1818;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      border-radius: 3px;
+      background: #741212;
+    }
+
+    .login-btn {
+      margin-left: auto;
+    }
+    @media screen and (max-width: 768px) {
       .login-btn {
-        margin-left: auto;
+        margin-left: 0;
       }
-      @media screen and (max-width: 768px) {
-        .login-btn {
-          margin-left: 0;
-        }
+    }
+
+    .reqActions:hover {
+      background-color: #e3e3e8;
+    }
+
+    .modal {
+      display: none;
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background-color: rgba(0, 0, 0, 0.5);
+      opacity: 0;
+      transition: opacity 0.3s ease-in-out;
+    }
+
+    .modal.open {
+      display: block;
+      opacity: 1;
+    }
+
+    .modal-content {
+      background-color: #fff;
+      border-radius: 8px;
+      overflow: hidden;
+      width: 60vw;
+      max-width: 50%;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+      left: 25%;
+      top: 25%;
+      opacity: 0;
+      animation: modalFadeIn 0.3s ease-in-out forwards;
+    }
+
+    .modal-header {
+      background-color: #df3545;
+      padding: 10px;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .close {
+      font-size: 20px;
+      cursor: pointer;
+      border: none;
+      border-radius: 0.375rem;
+      background-color: #df3545;
+      color: white;
+      margin-left: 10px;
+    }
+
+    .modal-body {
+      padding: 20px;
+    }
+
+    @keyframes modalFadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(-20px);
       }
-    </style>
-  </head>
-  
-  <body class="fixed-nav bg-dark sticky-footer" id="page-top">
-    <!-- Navigation-->
-    <header class="vw-100">
-      <nav class="navbar navbar-expand-md navbar-dark fixed-top bg-danger w-100">
-        <div class="container-fluid">
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+  </style>
+</head>
+
+<body class="fixed-nav bg-dark sticky-footer" id="page-top">
+  <!-- Navigation-->
+  <header class="vw-100">
+    <nav class="navbar navbar-expand-md navbar-dark fixed-top bg-danger w-100">
+      <div class="container-fluid">
+        <a
+          class="navbar-brand"
+          href="/admin/dashboard/"
+          style="font-family:system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;font-weight: bold;"
+          >B.D.M.S <i class="fa-solid fa-droplet" /></a
+        >
+
+        <button
+          class="navbar-toggler"
+          type="button"
+          data-toggle="collapse"
+          data-target="#navbarCollapse"
+          aria-controls="navbarCollapse"
+          aria-expanded="false"
+          aria-label="Toggle navigation"
+        >
+          <span class="navbar-toggler-icon" />
+        </button>
+        <div class="collapse navbar-collapse" id="navbarCollapse">
+          <ul style="width: 100%;" class="navbar-nav mr-auto mb-2 mb-md-0">
+            <li class="nav-item">
+              <a
+                class="nav-link nav-hover text-light"
+                href="/admin/dashboard/inventory">Inventory</a
+              >
+            </li>
+            <li class="nav-item">
+              <a
+                class="nav-link nav-hover text-light"
+                href="/admin/dashboard/bloodrequests">Blood Requests</a
+              >
+            </li>
+            <li class="nav-item">
+              <a
+                class="nav-link nav-hover text-light"
+                href="/admin/dashboard/bloodtransac">Blood Transactions</a
+              >
+            </li>
+            <li class="nav-item">
+              <a
+                class="nav-link nav-hover text-light"
+                href="/admin/dashboard/bloodreqforms">Request Forms</a
+              >
+            </li>
+            <li class="nav-item">
+              <a
+                class="nav-link nav-hover text-light"
+                href="/admin/dashboard/donations">Donations</a
+              >
+            </li>
+          </ul>
           <a
-            class="navbar-brand"
-            href="/admin/dashboard/"
-            style="font-family:system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;font-weight: bold;"
-            >B.D.M.S <i class="fa-solid fa-droplet" /></a
+            href="/"
+            style="font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;font-weight: bold;"
+            class="btn btn-danger">Logout</a
           >
-  
-          <button
-            class="navbar-toggler"
-            type="button"
-            data-toggle="collapse"
-            data-target="#navbarCollapse"
-            aria-controls="navbarCollapse"
-            aria-expanded="false"
-            aria-label="Toggle navigation"
-          >
-            <span class="navbar-toggler-icon" />
-          </button>
-          <div class="collapse navbar-collapse" id="navbarCollapse">
-            <ul style="width: 100%;" class="navbar-nav mr-auto mb-2 mb-md-0">
-              <li class="nav-item">
-                <a
-                  class="nav-link nav-hover text-light"
-                  href="/admin/dashboard/inventory">Inventory</a
-                >
-              </li>
-              <li class="nav-item">
-                <a
-                  class="nav-link nav-hover text-light"
-                  href="/admin/dashboard/bloodrequests">Blood Requests</a
-                >
-              </li>
-              <li class="nav-item">
-                <a
-                  class="nav-link nav-hover text-light"
-                  href="/admin/dashboard/bloodtransac">Blood Transactions</a
-                >
-              </li>
-              <li class="nav-item">
-                <a class="nav-link nav-hover text-light" href="/admin/dashboard/bloodreqforms">Request Forms</a>
-              </li>
-              <li class="nav-item">
-                <a
-                  class="nav-link nav-hover text-light"
-                  href="/admin/dashboard/donation">Donation Entries </a
-                >
-              </li>
-            </ul>
-            <a
-              href="/"
-              style="font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;font-weight: bold;"
-              class="btn btn-danger">Logout</a
-            >
-          </div>
         </div>
-      </nav>
-    </header>
-  
-    <main>
-      <!--Main Content-->
-      <div class="content-wrapper" style="margin-top: 5rem;">
-        <!-- Transaction Section-->
-        <div>
-  
-          <!--Blood Inventory-->
-          <div class="card mb-3 mx-1" id="blood-inventory">
-            <div class="card-header text-danger">
-              <i class="fa fa-droplet" /> Blood Request
+      </div>
+    </nav>
+  </header>
+
+  <main>
+    <!--Main Content-->
+    <div class="content-wrapper" style="margin-top: 5rem;">
+      <!-- Transaction Section-->
+      <div>
+        <!--Blood Inventory-->
+        <div class="card mb-3 mx-1" id="blood-inventory">
+          <div class="card-header text-danger">
+            <i class="fa fa-droplet" /> Blood Requests
+          </div>
+          <div class="card-body">
+            <div class="table-responsive">
+              <table class="table table-bordered" id="dataTable" width="100%" cellspacing="0">
+                <thead>
+                  <tr class="clearfix">
+                    <th on:click={() => sortTable('id')}>
+                      Serial ID
+                      {sortColumn === 'id' ? (sortDirection === 1 ? ' ▲' : ' ▼') : ''}
+                    </th>
+                    <th on:click={() => sortTable('patient_bloodtype')}>
+                      Patient Blood Type
+                      {sortColumn === 'patient_bloodtype' ? (sortDirection === 1 ? ' ▲' : ' ▼') : ''}
+                    </th>
+                    <th on:click={() => sortTable('request_urgency')}>
+                      Urgency
+                      {sortColumn === 'request_urgency' ? (sortDirection === 1 ? ' ▲' : ' ▼') : ''}
+                    </th>
+                    <th on:click={() => sortTable('request_quantity')}>
+                      Requested Quantity
+                      {sortColumn === 'request_quantity' ? (sortDirection === 1 ? ' ▲' : ' ▼') : ''}
+                    </th>
+                    <th on:click={() => sortTable('request_date')}>
+                      Date Requested
+                      {sortColumn === 'request_date' ? (sortDirection === 1 ? ' ▲' : ' ▼') : ''}
+                    </th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tfoot>
+                  <tr>
+                    <th>Serial ID</th>
+                    <th>Patient Blood Type</th>
+                    <th>Urgency</th>
+                    <th>Requested Quantity</th>
+                    <th>Date Requested</th>
+                    <th>Action</th>
+                  </tr>
+                </tfoot>
+                <tbody>
+                  {#each data as item (item.id)}
+                  <tr>
+                    <td>{item.id}</td>
+                    <td>{item.patient_bloodtype}</td>
+                    <td>{item.request_urgency}</td>
+                    <td>{item.request_quantity}</td>
+                    <td>{moment(item.request_date).format("L • hh:mma")}</td>
+                    <td>
+                      <button class="btn btn-danger rounded" on:click={() => openModal(item)}>
+                        Review Request
+                      </button>
+                    </td>
+                  </tr>
+                  {/each}
+                </tbody>
+              </table>
             </div>
-            <div class="card-body">
-              <div class="table-responsive">
-                <table
-                  class="table table-bordered"
-                  id="dataTable"
-                  width="100%"
-                  cellspacing="0"
-                >
-                  <thead>
-                    <tr class="clearfix">
-                        <th>Serial ID<a href="#home"><i class="fa-solid fa-sort float-end text-dark" /></a></th>
-                        <th>Patient Name<a href="#home"><i class="fa-solid fa-sort float-end text-dark" /></a></th>
-                        <th>Patient Diagnosis<a href="#home"><i class="fa-solid fa-sort float-end text-dark" /></a></th>
-                        <th>Patient Blood Type<a href="#home"><i class="fa-solid fa-sort float-end text-dark" /></a></th>
-                        <th>Request Purpose<a href="#home"><i class="fa-solid fa-sort float-end text-dark" /></a></th>
-                        <th>Blood Pack Type<a href="#home"><i class="fa-solid fa-sort float-end text-dark" /></a></th>
-                        <th>Urgency<a href="#home"><i class="fa-solid fa-sort float-end text-dark" /></a></th>
-                        <th>Requested Quantity<a href="#home"><i class="fa-solid fa-sort float-end text-dark" /></a></th>
-                        <th>Date Requested<a href="#home"><i class="fa-solid fa-sort float-end text-dark" /></a></th>
-                    </tr>
-                  </thead>
-                  <tfoot>
-                    <tr>
-                      <th>Serial ID</th>
-                      <th>Patient Name</th>
-                      <th>Patient Diagnosis</th>
-                      <th>Patient Blood Type</th>
-                      <th>Request Purpose</th>
-                      <th>Blood Pack Type</th>
-                      <th>Urgency</th>
-                      <th>Requested Quantity</th>
-                      <th>Date Requested</th>
-                    </tr>
-                  </tfoot>
-                  <tbody>
-                    {#each data as item (item.id)}
-                      <tr>
-                        <td>{item.id}</td>
-                        <td>{item.patient_name}</td>
-                        <td>{item.patient_diagnosis}</td>
-                        <td>{item.patient_bloodtype}</td>
-                        <td>{item.request_purpose}</td>
-                        <td>{item.request_bloodpack}</td>
-                        <td>{item.request_urgency}</td>
-                        <td>{item.request_quantity}</td>
-                        <td>{moment(item.request_date).format("L • hh:mma")}</td>
-                      </tr>
-                    {/each}
-                  </tbody>
-                </table>
+          </div>
+          <!--Modal-->
+          {#if isOpen}
+            <div class="modal open">
+              <div class="modal-content">
+                <div class="modal-header">
+                  <span
+                    style="margin-left: 10px; color: white; font-weight: bold;"
+                    >Request Details</span
+                  >
+                  <button class="close" on:click={closeModal}>&times;</button>
+                </div>
+                <div class="modal-body">
+                  {#if requestDetails}
+                    <div class="row">
+                      <!-- Patient Details -->
+                      <div class="col">
+                        <div class="d-flex flex-column">
+                          <span class="heading d-block fw-bold">Serial ID:</span
+                          >
+                          <span class="subheadings">{requestDetails.id}</span>
+                        </div>
+                      </div>
+                      <div class="col">
+                        <div class="d-flex flex-column">
+                          <span class="heading d-block fw-bold"
+                            >Patient Name:</span
+                          >
+                          <span class="subheadings"
+                            >{requestDetails.patient_name}</span
+                          >
+                        </div>
+                      </div>
+                      <div class="col">
+                        <div class="d-flex flex-column justify-content-center">
+                          <span class="heading d-block fw-bold">Diagnosis:</span
+                          >
+                          <span class="subheadings"
+                            >{requestDetails.patient_diagnosis}</span
+                          >
+                        </div>
+                      </div>
+                      <div class="col">
+                        <div class="d-flex flex-column">
+                          <span class="heading d-block fw-bold"
+                            >Blood Type:</span
+                          >
+                          <span class="subheadings"
+                            >{requestDetails.patient_bloodtype}</span
+                          >
+                        </div>
+                      </div>
+                    </div>
+                    <!-- Request Details -->
+                    <div class="row">
+                      <div class="col">
+                        <div class="d-flex flex-column">
+                          <span class="heading d-block fw-bold"
+                            >Request Purpose:</span
+                          >
+                          <span class="subheadings"
+                            >{requestDetails.request_purpose}</span
+                          >
+                        </div>
+                      </div>
+                      <div class="col">
+                        <div class="d-flex flex-column">
+                          <span class="heading d-block fw-bold"
+                            >Requested Bloodpack:</span
+                          >
+                          <span class="subheadings"
+                            >{requestDetails.request_bloodpack}</span
+                          >
+                        </div>
+                      </div>
+                      <div class="col">
+                        <div class="d-flex flex-column justify-content-center">
+                          <span class="heading d-block fw-bold">Urgency:</span>
+                          <span class="subheadings"
+                            >{requestDetails.request_urgency}</span
+                          >
+                        </div>
+                      </div>
+                      <div class="col">
+                        <div class="d-flex flex-column">
+                          <span class="heading d-block fw-bold"
+                            >Date Requested:</span
+                          >
+                          <span class="subheadings">
+                            {moment(requestDetails.request_date).format(
+                              "L • hh:mma"
+                            )}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    <!-- Request Action -->
+                    <div class="row">
+                      <div class="col">
+                        <div class="d-flex flex-column">
+                          <span class="heading d-block fw-bold">Action:</span>
+                          <span class="subheadings">
+                            {#if !rowStatus.get(requestDetails.id)}
+                              <button
+                                class="btn"
+                                on:click={handleCheckButtonClick}
+                              >
+                                <i
+                                  class="fa-solid fa-square-check fs-3 text-success"
+                                />
+                              </button>
+                              <button
+                                class="btn"
+                                on:click={handleXMarkButtonClick}
+                              >
+                                <i
+                                  class="fa-solid fa-square-xmark fs-3 text-danger"
+                                />
+                              </button>
+                            {:else if rowStatus.get(requestDetails.id).action === "accept"}
+                              <p>Accepted</p>
+                            {:else if rowStatus.get(requestDetails.id).action === "reject"}
+                              <p>Denied!</p>
+                            {/if}
+                          </span>
+                        </div>
+                      </div>
+                      <div class="col">
+                        <div class="d-flex flex-column">
+                          <span class="heading d-block fw-bold">Remarks:</span>
+                          <span class="subheadings">
+                            {#if !rowStatus.get(requestDetails.id)}
+                              <form action="">
+                                <textarea
+                                  bind:value={remarks}
+                                  class="form-control"
+                                  style="min-width: 100%; resize:none"
+                                  placeholder="Additional remarks"
+                                />
+                              </form>
+                            {:else}
+                              <form action="">
+                                <textarea
+                                  bind:value={remarks}
+                                  class="form-control"
+                                  style="min-width: 100%; resize:none"
+                                  disabled
+                                  readonly
+                                />
+                              </form>
+                            {/if}
+                          </span>
+                        </div>
+                      </div>
+                      <div class="row">
+                        <div class="col">
+                          <div class="d-flex flex-column">
+                            <div class="d-flex flex-wrap">
+                              <span class="heading d-block fw-bold"
+                                >Blood in Stock:</span
+                              >
+                              <div class="row">
+                                {#each Object.entries(bloodTypeCounts) as [bloodType, count]}
+                                  <div class="col-sm">
+                                    <span class="me-3">
+                                      <span class="badge bg-danger"
+                                        >{bloodType}</span
+                                      >
+                                      <span class="badge bg-light text-dark"
+                                        >{count}</span
+                                      >
+                                    </span>
+                                  </div>
+                                {/each}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  {/if}
+                </div>
               </div>
             </div>
-          </div>
+          {/if}
         </div>
         <footer class="sticky-footer">
           <div class="container">
@@ -328,6 +646,6 @@
           </div>
         </footer>
       </div>
-    </main>
-  </body>
-  
+    </div>
+  </main>
+</body>
