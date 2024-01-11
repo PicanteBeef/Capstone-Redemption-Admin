@@ -71,33 +71,51 @@
   };
 
   const handleCheckButtonClick = async () => {
-    // Transfer data to another table
-    const { id } = requestDetails;
-    const { data, error } = await supabase
-      .from("blood_requests_releasing")
-      .upsert([
-        {
-          id: id,
-          patient_name: requestDetails.patient_name,
-          patient_diagnosis: requestDetails.patient_diagnosis,
-          patient_bloodtype: requestDetails.patient_bloodtype,
-          request_purpose: requestDetails.request_purpose,
-          request_bloodpack: requestDetails.request_bloodpack,
-          request_urgency: requestDetails.request_urgency,
-          request_quantity: requestDetails.request_quantity,
-          request_date: requestDetails.request_date,
-          request_remarks: remarks,
-        },
-      ]);
+  // Transfer data to another table
+  const { id } = requestDetails;
+  const { data, error } = await supabase
+    .from("blood_requests_releasing")
+    .upsert([
+      {
+        // Map the data accordingly if needed
+        id: id,
+        patient_name: requestDetails.patient_name,
+        patient_diagnosis: requestDetails.patient_diagnosis,
+        patient_bloodtype: requestDetails.patient_bloodtype,
+        request_purpose: requestDetails.request_purpose,
+        request_bloodpack: requestDetails.request_bloodpack,
+        request_urgency: requestDetails.request_urgency,
+        request_quantity: requestDetails.request_quantity,
+        request_date: requestDetails.request_date,
+        request_remarks: remarks,
+      },
+    ]);
 
-    if (error) {
-      console.error("Error transferring data:", error);
-      return;
-    }
-    console.log("Accepted!");
-    rowStatusUpdate.set(requestDetails.id, { action: "accept" });
-    rowStatus = rowStatusUpdate;
-  };
+  if (error) {
+    console.error("Error transferring data:", error);
+    return;
+  }
+
+  console.log("Accepted!");
+  rowStatusUpdate.set(requestDetails.id, { action: "accept" });
+  rowStatus = rowStatusUpdate;
+
+  // Assuming the original table is named 'blood_requests'
+  const deleteResponse = await supabase
+    .from("blood_requests")
+    .delete()
+    .eq("id", id);
+
+  // Check for errors in the delete operation
+  if (deleteResponse.error) {
+    console.error("Error deleting data from original table:", deleteResponse.error);
+    // You may want to handle the error appropriately, e.g., retry or show a user-friendly message
+    return;
+  }
+
+  // Data has been successfully transferred to the destination table and deleted from the original table
+  console.log("Data transferred and deleted successfully!");
+};
 
   const handleXMarkButtonClick = async () => {
     // Additional logic for x-mark button if needed
@@ -105,6 +123,31 @@
     console.log("Denied!");
     rowStatusUpdate.set(requestDetails.id, { action: "reject" });
     rowStatus = rowStatusUpdate;
+  };
+
+  let sortColumn = "";
+  let sortDirection = 1; // 1 for ascending, -1 for descending
+
+  const sortTable = (column) => {
+    if (column === sortColumn) {
+      // Reverse the sort direction if the same column is clicked
+      sortDirection = -sortDirection;
+    } else {
+      // Set the new sort column and reset the direction
+      sortColumn = column;
+      sortDirection = 1;
+    }
+
+    data = data.slice().sort((a, b) => {
+      const valueA = a[column];
+      const valueB = b[column];
+
+      if (typeof valueA === "string" && typeof valueB === "string") {
+        return sortDirection * valueA.localeCompare(valueB);
+      } else {
+        return sortDirection * (valueA - valueB);
+      }
+    });
   };
 </script>
 
@@ -137,10 +180,12 @@
   <!-- Latest compiled JavaScript -->
   <!-- Latest compiled JavaScript -->
   <!-- Latest compiled JavaScript -->
+  <!-- Latest compiled JavaScript -->
   <script
     src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"
   ></script>
 
+  <!--Latest complied Popperjs-->
   <!--Latest complied Popperjs-->
   <!--Latest complied Popperjs-->
   <!--Latest complied Popperjs-->
@@ -352,6 +397,12 @@
                 href="/admin/dashboard/donations">Donations</a
               >
             </li>
+            <li class="nav-item">
+              <a
+                class="nav-link nav-hover text-light"
+                href="/admin/dashboard/releasing">Releasing</a
+              >
+            </li>
           </ul>
           <a
             href="/"
@@ -383,11 +434,46 @@
               >
                 <thead>
                   <tr class="clearfix">
-                    <th>Serial ID</th>
-                    <th>Patient Blood Type</th>
-                    <th>Urgency</th>
-                    <th>Requested Quantity</th>
-                    <th>Date Requested</th>
+                    <th on:click={() => sortTable("id")}>
+                      Serial ID
+                      {sortColumn === "id"
+                        ? sortDirection === 1
+                          ? " ▲"
+                          : " ▼"
+                        : ""}
+                    </th>
+                    <th on:click={() => sortTable("patient_bloodtype")}>
+                      Patient Blood Type
+                      {sortColumn === "patient_bloodtype"
+                        ? sortDirection === 1
+                          ? " ▲"
+                          : " ▼"
+                        : ""}
+                    </th>
+                    <th on:click={() => sortTable("request_urgency")}>
+                      Urgency
+                      {sortColumn === "request_urgency"
+                        ? sortDirection === 1
+                          ? " ▲"
+                          : " ▼"
+                        : ""}
+                    </th>
+                    <th on:click={() => sortTable("request_quantity")}>
+                      Requested Quantity
+                      {sortColumn === "request_quantity"
+                        ? sortDirection === 1
+                          ? " ▲"
+                          : " ▼"
+                        : ""}
+                    </th>
+                    <th on:click={() => sortTable("request_date")}>
+                      Date Requested
+                      {sortColumn === "request_date"
+                        ? sortDirection === 1
+                          ? " ▲"
+                          : " ▼"
+                        : ""}
+                    </th>
                     <th>Action</th>
                   </tr>
                 </thead>
@@ -413,8 +499,9 @@
                         <button
                           class="btn btn-danger rounded"
                           on:click={() => openModal(item)}
-                          >Review Request</button
                         >
+                          Review Request
+                        </button>
                       </td>
                     </tr>
                   {/each}

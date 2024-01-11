@@ -75,7 +75,7 @@
     }
   }
 
-  //Fetch Blood Inventory Data
+  // Fetch Blood Inventory Data
   onMount(async () => {
     const { data: records, error } = await supabase
       .from("blood_inventory")
@@ -120,7 +120,8 @@
     const { data: donutRecords, donutError } = await supabase
       .from("blood_inventory")
       .select("*")
-      .order("entry_date", { ascending: false });
+
+    console.log(donutRecords);
 
     if (error) {
       console.error("Error fetching data", donutError);
@@ -149,6 +150,7 @@
   console.log(totalSum);
 
   function doughnutChart() {
+    console.log("Total Sum:", totalSum);
     const ctx = document.getElementById("myDoughnutChart").getContext("2d");
 
     new Chart(ctx, {
@@ -352,6 +354,12 @@
                 <a
                   class="nav-link nav-hover text-light"
                   href="/admin/dashboard/donations">Donations</a
+                >
+              </li>
+              <li class="nav-item">
+                <a
+                  class="nav-link nav-hover text-light"
+                  href="/admin/dashboard/releasing">Releasing</a
                 >
               </li>
             </ul>

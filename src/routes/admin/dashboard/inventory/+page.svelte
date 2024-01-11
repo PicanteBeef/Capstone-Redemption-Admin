@@ -29,53 +29,94 @@
   }
 
   // Insert Entry to Blood Inventory
+  // async function handleSubmit(event) {
+  //   console.log(formData);
+  //   event.preventDefault();
+  //   // Calculate the expiry date by adding 42 days to the current date
+  //   const entryDate = new Date(formData.entryDate);
+  //   const expiryDate = new Date(formData.entryDate);
+  //   expiryDate.setDate(expiryDate.getDate() + 42);
+
+  //   const { data: record, error } = await supabase
+  //     .from("blood_inventory")
+  //     .insert({
+  //       blood_type: formData.bloodType,
+  //       amount: formData.amount,
+  //       entry_date: entryDate,
+  //       expiry: expiryDate,
+  //     })
+  //     .select();
+
+  //   if (error) {
+  //     console.error("Error inserting data:", error);
+  //     return;
+  //   }
+
+  //   const { data: record1, error1 } = await supabase
+  //     .from("blood_transactions")
+  //     .insert({
+  //       id: record[0].id,
+  //       blood_type: formData.bloodType,
+  //       amount: formData.amount,
+  //       transaction_date: record[0].entry_date,
+  //       transaction_type: "Blood In",
+  //     })
+  //     .select();
+
+  //   if (error1) {
+  //     console.error("Error inserting data:", error1);
+  //     return;
+  //   }
+
+  //   formData = {
+  //     bloodType: "",
+  //     amount: 0,
+  //     entryDate: "",
+  //   };
+
+  //   data = [record[0], ...data];
+  // }
+
   async function handleSubmit(event) {
-    console.log(formData);
-    event.preventDefault();
-    // Calculate the expiry date by adding 42 days to the current date
-    const entryDate = new Date(formData.entryDate);
-    const expiryDate = new Date(formData.entryDate);
-    expiryDate.setDate(expiryDate.getDate() + 42);
+        event.preventDefault();
 
-    const { data: record, error } = await supabase
-      .from("blood_inventory")
-      .insert({
-        blood_type: formData.bloodType,
-        amount: formData.amount,
-        entry_date: entryDate,
-        expiry: expiryDate,
-      })
-      .select();
+        // Ensure that bloodType is selected
+        if (!formData.bloodType) {
+            console.error("Blood Type is required.");
+            return;
+        }
 
-    if (error) {
-      console.error("Error inserting data:", error);
-      return;
+        // Calculate expiry date by adding 42 days to the entry date
+        const entryDate = new Date(formData.entryDate);
+        const expiryDate = new Date(formData.entryDate);
+        expiryDate.setDate(expiryDate.getDate() + 42);
+
+        // Prepare the Supabase insert query dynamically
+        const insertData = {
+            blood_type: formData.bloodType,
+            amount: formData.amount,
+            entry_date: entryDate,
+            expiry: expiryDate,
+        };
+
+        // Construct the update object for the specific blood type column in blood_stock
+        const updateData = {};
+        updateData[formData.bloodType.toLowerCase()] = formData.amount;
+
+        // Use Supabase transaction to insert into blood_inventory and update blood_stock
+        const { data: records, error } = await supabase
+            .rpc('insert_and_update', { insertData, updateData })
+            .select();
+
+        if (error) {
+            console.error("Error inserting data:", error);
+            return;
+        }
+
+        console.log("Data inserted successfully:", records);
+
+        // You may want to update your UI or perform additional actions here
     }
-
-    const { data: record1, error1 } = await supabase
-      .from("blood_transactions")
-      .insert({
-        id: record[0].id,
-        blood_type: formData.bloodType,
-        amount: formData.amount,
-        transaction_date: record[0].entry_date,
-        transaction_type: "Blood In",
-      })
-      .select();
-
-    if (error1) {
-      console.error("Error inserting data:", error1);
-      return;
-    }
-
-    formData = {
-      bloodType: "",
-      amount: 0,
-      entryDate: "",
-    };
-
-    data = [record[0], ...data];
-  }
 
   // Delete Entry From Blood Inventory
   async function deleteOne(itemToDelete) {
@@ -276,6 +317,12 @@
             </li>
             <li class="nav-item">
               <a class="nav-link nav-hover text-light" href="/admin/dashboard/donations">Donations</a>
+            </li>
+            <li class="nav-item">
+              <a
+                class="nav-link nav-hover text-light"
+                href="/admin/dashboard/releasing">Releasing</a
+              >
             </li>
           </ul>
           <a
