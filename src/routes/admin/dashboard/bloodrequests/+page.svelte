@@ -1,34 +1,50 @@
 <!-- Blood requests lands here. -->
 
 <script>
-  import { onMount } from "svelte";
-  import supabase from "/src/lib/supabaseClient.js";
-  import moment from "moment";
-  import { createEventDispatcher } from "svelte";
+  import { onMount } from 'svelte';
+  import supabase from '/src/lib/supabaseClient.js';
+  import moment from 'moment';
+  import { createEventDispatcher } from 'svelte';
+  import DataTable from 'datatables.net-dt';
 
   let data = [];
 
   //Fetch Blood Requests Data
   onMount(async () => {
     const { data: records, error } = await supabase
-      .from("blood_requests")
-      .select("*")
-      .order("request_date", { ascending: false });
+      .from('blood_requests')
+      .select('*')
+      .order('request_date', { ascending: false });
 
     if (error) {
-      console.error("Error fetching data from Supabase:", error);
+      console.error('Error fetching data from Supabase:', error);
     } else {
       data = records;
     }
+
+    let table = new DataTable('#dataTable', {
+      data: records.map((obj) => [
+        obj.id,
+        obj.patient_bloodtype,
+        obj.request_urgency,
+        obj.request_quantity,
+        moment(obj.request_date).format('L • hh:mma'),
+        `<button
+            class="btn btn-danger rounded"
+            >Review Request</button
+        >`,
+      ]),
+      responsive: true,
+    });
   });
 
   //Modal Functions
   let requestDetails;
-  let remarks='';
+  let remarks = '';
   let isOpen = false;
 
   let rowStatus = new Map();
-  const rowStatusUpdate= new Map(rowStatus);
+  const rowStatusUpdate = new Map(rowStatus);
 
   const dispatch = createEventDispatcher();
 
@@ -39,43 +55,43 @@
 
   const closeModal = () => {
     isOpen = false;
-    dispatch("modalClosed");
+    dispatch('modalClosed');
   };
 
   const handleCheckButtonClick = async () => {
     // Transfer data to another table
     const { id } = requestDetails;
     const { data, error } = await supabase
-    .from("blood_requests_releasing")
-    .upsert([
-      {
-        id: id,
-        patient_name: requestDetails.patient_name,
-        patient_diagnosis: requestDetails.patient_diagnosis,
-        patient_bloodtype: requestDetails.patient_bloodtype,
-        request_purpose: requestDetails.request_purpose,
-        request_bloodpack: requestDetails.request_bloodpack,
-        request_urgency: requestDetails.request_urgency,
-        request_quantity: requestDetails.request_quantity,
-        request_date: requestDetails.request_date,
-        request_remarks: remarks,
-      },
-    ]);
+      .from('blood_requests_releasing')
+      .upsert([
+        {
+          id: id,
+          patient_name: requestDetails.patient_name,
+          patient_diagnosis: requestDetails.patient_diagnosis,
+          patient_bloodtype: requestDetails.patient_bloodtype,
+          request_purpose: requestDetails.request_purpose,
+          request_bloodpack: requestDetails.request_bloodpack,
+          request_urgency: requestDetails.request_urgency,
+          request_quantity: requestDetails.request_quantity,
+          request_date: requestDetails.request_date,
+          request_remarks: remarks,
+        },
+      ]);
 
     if (error) {
-      console.error("Error transferring data:", error);
+      console.error('Error transferring data:', error);
       return;
     }
-    console.log("Accepted!");
-    rowStatusUpdate.set(requestDetails.id, {action: "accept"});
+    console.log('Accepted!');
+    rowStatusUpdate.set(requestDetails.id, { action: 'accept' });
     rowStatus = rowStatusUpdate;
   };
 
   const handleXMarkButtonClick = async () => {
     // Additional logic for x-mark button if needed
     const { id } = requestDetails;
-    console.log("Denied!");
-    rowStatusUpdate.set(requestDetails.id, {action: "reject"});
+    console.log('Denied!');
+    rowStatusUpdate.set(requestDetails.id, { action: 'reject' });
     rowStatus = rowStatusUpdate;
   };
 </script>
@@ -102,6 +118,12 @@
     crossorigin="anonymous"
   ></script>
 
+  <link
+    rel="stylesheet"
+    href="https://cdn.datatables.net/1.13.7/css/jquery.dataTables.css"
+  />
+  <!-- Latest compiled JavaScript -->
+  <!-- Latest compiled JavaScript -->
   <!-- Latest compiled JavaScript -->
   <!-- Latest compiled JavaScript -->
   <!-- Latest compiled JavaScript -->
@@ -111,6 +133,8 @@
     src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"
   ></script>
 
+  <!--Latest complied Popperjs-->
+  <!--Latest complied Popperjs-->
   <!--Latest complied Popperjs-->
   <!--Latest complied Popperjs-->
   <!--Latest complied Popperjs-->
@@ -160,7 +184,9 @@
       background-position: 0 100%; /*OR bottom left*/
       background-size: 0% 2px;
       background-repeat: no-repeat;
-      transition: background-size 0.3s, background-position 0s 0.3s; /*change after the size immediately*/
+      transition:
+        background-size 0.3s,
+        background-position 0s 0.3s; /*change after the size immediately*/
     }
 
     .nav-hover:hover {
@@ -306,12 +332,18 @@
                 href="/admin/dashboard/bloodtransac">Blood Transactions</a
               >
             </li>
-              <li class="nav-item">
-                <a class="nav-link nav-hover text-light" href="/admin/dashboard/bloodreqforms">Request Forms</a>
-              </li>
             <li class="nav-item">
-                <a class="nav-link nav-hover text-light" href="/admin/dashboard/donations">Donations</a>
-              </li>
+              <a
+                class="nav-link nav-hover text-light"
+                href="/admin/dashboard/bloodreqforms">Request Forms</a
+              >
+            </li>
+            <li class="nav-item">
+              <a
+                class="nav-link nav-hover text-light"
+                href="/admin/dashboard/donations">Donations</a
+              >
+            </li>
           </ul>
           <a
             href="/"
@@ -335,14 +367,9 @@
           </div>
           <div class="card-body">
             <div class="table-responsive">
-              <table
-                class="table table-bordered"
-                id="dataTable"
-                width="100%"
-                cellspacing="0"
-              >
+              <table class="display" id="dataTable">
                 <thead>
-                  <tr class="clearfix">
+                  <tr>
                     <th>Serial ID</th>
                     <th>Patient Blood Type</th>
                     <th>Urgency</th>
@@ -362,13 +389,13 @@
                   </tr>
                 </tfoot>
                 <tbody>
-                  {#each data as item (item.id)}
+                  <!-- {#each data as item (item.id)}
                     <tr>
                       <td>{item.id}</td>
                       <td>{item.patient_bloodtype}</td>
                       <td>{item.request_urgency}</td>
                       <td>{item.request_quantity}</td>
-                      <td>{moment(item.request_date).format("L • hh:mma")}</td>
+                      <td>{moment(item.request_date).format('L • hh:mma')}</td>
                       <td>
                         <button
                           class="btn btn-danger rounded"
@@ -377,7 +404,7 @@
                         >
                       </td>
                     </tr>
-                  {/each}
+                  {/each} -->
                 </tbody>
               </table>
             </div>
@@ -485,7 +512,7 @@
                                 >
                                 <span class="subheadings"
                                   >{moment(requestDetails.request_date).format(
-                                    "L • hh:mma"
+                                    'L • hh:mma'
                                   )}</span
                                 >
                               </div>
@@ -514,9 +541,9 @@
                                         class="fa-solid fa-square-xmark fs-3 text-danger"
                                       /></button
                                     >
-                                  {:else if rowStatus.get(requestDetails.id).action === "accept"}
+                                  {:else if rowStatus.get(requestDetails.id).action === 'accept'}
                                     <p>Accepted</p>
-                                  {:else if rowStatus.get(requestDetails.id).action === "reject"}
+                                  {:else if rowStatus.get(requestDetails.id).action === 'reject'}
                                     <p>Denied!</p>
                                   {/if}
                                 </span>
