@@ -6,8 +6,10 @@
   import moment from "moment";
   import { createEventDispatcher } from "svelte";
 
-  let data = [];
-
+    let data = [];
+    let originalData = [];
+    let searchTerm = '';
+    
   //Fetch Blood Requests Data
   onMount(async () => {
     const { data: records, error } = await supabase
@@ -19,8 +21,28 @@
       console.error("Error fetching data from Supabase:", error);
     } else {
       data = records;
+      originalData = records;
     }
   });
+
+    
+  const search = () => {
+    if (searchTerm.trim() === '') {
+      data = originalData;
+      return;
+    }
+
+    const filteredData = originalData.filter(item => {
+      return (
+        item.request_urgency.toLowerCase().includes(searchTerm.toLowerCase())
+        // Add more fields as needed for your search
+      );
+    });
+
+    data = filteredData;
+  };
+  $: search(); 
+  
 
   let bloodBags = [];
 
@@ -74,20 +96,14 @@
   // Transfer data to another table
   const { id } = requestDetails;
   const { data, error } = await supabase
-    .from("blood_requests_releasing")
+    .from("blood_transactions")
     .upsert([
       {
         // Map the data accordingly if needed
         id: id,
-        patient_name: requestDetails.patient_name,
-        patient_diagnosis: requestDetails.patient_diagnosis,
-        patient_bloodtype: requestDetails.patient_bloodtype,
-        request_purpose: requestDetails.request_purpose,
-        request_bloodpack: requestDetails.request_bloodpack,
-        request_urgency: requestDetails.request_urgency,
-        request_quantity: requestDetails.request_quantity,
-        request_date: requestDetails.request_date,
-        request_remarks: remarks,
+        entry_bloodtype: requestDetails.patient_bloodtype,
+        amount: requestDetails.request_quantity,
+        transaction_type: "Blood Out"
       },
     ]);
 
@@ -99,6 +115,45 @@
   console.log("Accepted!");
   rowStatusUpdate.set(requestDetails.id, { action: "accept" });
   rowStatus = rowStatusUpdate;
+  console.log(requestDetails);
+
+  const bloodValuePair = {
+    "A+": "a_pos",
+    "A-": "a_neg",
+    "B+": "b_pos",
+    "B-": "b_neg",
+    "AB+": "ab_pos",
+    "AB-": "ab_neg",
+    "O+": "o_pos",
+    "O-": "o_neg",
+  }
+  const requestBloodtype = bloodValuePair[requestDetails.patient_bloodtype];
+  console.log(requestBloodtype);
+
+  const { data: dataZ, errorZ } = await supabase
+      .from('blood_stock')
+      .select(requestBloodtype)
+
+      if (errorZ) {
+        console.error('Error fetching data from Supabase:', error.message);
+        return;
+      }
+
+      console.log(dataZ);
+      const currentCount = dataZ[0]?.[requestBloodtype] || 0;
+      const newTotal = parseInt(currentCount) - parseInt(requestDetails.request_quantity);
+
+  const { updateError } = await supabase
+      .from('blood_stock')
+      .update({ [requestBloodtype]: newTotal})
+      .eq('id', 1);
+
+      if (updateError) {
+        console.error('Error updating data in Supabase:', updateError.message);
+        console.log('tite ni liemel joshua dumangon lacanilao ng san jose del monte bulacan');
+        return;
+      }
+      console.log("Blood Stock Updated Successfully.");
 
   // Assuming the original table is named 'blood_requests'
   const deleteResponse = await supabase
@@ -114,7 +169,7 @@
   }
 
   // Data has been successfully transferred to the destination table and deleted from the original table
-  console.log("Data transferred and deleted successfully!");
+  // console.log("Data transferred and deleted successfully!");
 };
 
   const handleXMarkButtonClick = async () => {
@@ -149,6 +204,7 @@
       }
     });
   };
+  
 </script>
 
 <head>
@@ -397,12 +453,6 @@
                 href="/admin/dashboard/donations">Donations</a
               >
             </li>
-            <li class="nav-item">
-              <a
-                class="nav-link nav-hover text-light"
-                href="/admin/dashboard/releasing">Releasing</a
-              >
-            </li>
           </ul>
           <a
             href="/"
@@ -425,7 +475,11 @@
             <i class="fa fa-droplet" /> Blood Request
           </div>
           <div class="card-body">
+            <div>
+              <input type="text" bind:value={searchTerm} on:input={search} placeholder="Search..." />
+            </div>
             <div class="table-responsive">
+              
               <table
                 class="table table-bordered"
                 id="dataTable"
@@ -433,15 +487,8 @@
                 cellspacing="0"
               >
                 <thead>
-                  <tr class="clearfix">
-                    <th on:click={() => sortTable("id")}>
-                      Serial ID
-                      {sortColumn === "id"
-                        ? sortDirection === 1
-                          ? " ▲"
-                          : " ▼"
-                        : ""}
-                    </th>
+                  <tr class="clearfix" style="">
+                    <th on:click={() => sortTable("id")}>Serial ID{sortColumn === "id"? sortDirection === 1? " ▲": " ▼": ""}</th>
                     <th on:click={() => sortTable("patient_bloodtype")}>
                       Patient Blood Type
                       {sortColumn === "patient_bloodtype"

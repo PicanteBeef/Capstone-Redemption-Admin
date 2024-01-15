@@ -16,6 +16,8 @@
   };
 
   let data = [];
+  let originalData = [];
+  let searchTerm = '';
 
   // Insert Entry to Blood Inventory
   async function handleSubmit(event) {
@@ -83,8 +85,55 @@
       console.error("Error fetching data from Supabase:", error);
     } else {
       data = records;
+      originalData = records;
     }
   });
+
+  const search = () => {
+    if (searchTerm.trim() === '') {
+      data = originalData;
+      return;
+    }
+
+    const filteredData = originalData.filter(item => {
+      return (
+        item.patient_name.toLowerCase().includes(searchTerm.toLowerCase()),
+        item.patient_diagnosis.toLowerCase().includes(searchTerm.toLowerCase()),
+        item.patient_bloodtype.toLowerCase().includes(searchTerm.toLowerCase()),
+        item.request_urgency.toLowerCase().includes(searchTerm.toLowerCase())
+        // Add more fields as needed for your search
+      );
+    });
+
+    data = filteredData;
+  };
+  $: search(); 
+  
+
+  let sortColumn = "";
+  let sortDirection = 1; // 1 for ascending, -1 for descending
+
+  const sortTable = (column) => {
+    if (column === sortColumn) {
+      // Reverse the sort direction if the same column is clicked
+      sortDirection = -sortDirection;
+    } else {
+      // Set the new sort column and reset the direction
+      sortColumn = column;
+      sortDirection = 1;
+    }
+
+    data = data.slice().sort((a, b) => {
+      const valueA = a[column];
+      const valueB = b[column];
+
+      if (typeof valueA === "string" && typeof valueB === "string") {
+        return sortDirection * valueA.localeCompare(valueB);
+      } else {
+        return sortDirection * (valueA - valueB);
+      }
+    });
+  };
 </script>
 
 <head>
@@ -255,12 +304,6 @@
             <li class="nav-item">
               <a class="nav-link nav-hover text-light" href="/admin/dashboard/donations">Donations</a>
             </li>
-            <li class="nav-item">
-              <a
-                class="nav-link nav-hover text-light"
-                href="/admin/dashboard/releasing">Releasing</a
-              >
-            </li>
           </ul>
           <a
             href="/"
@@ -343,24 +386,27 @@
               <input type="number" class="form-control" id="bagQuantity" bind:value={formData.bagQuantity} />
             </div>
 
-            <button type="submit" class="btn btn-primary">Submit</button>
+            <button type="submit" class="btn btn-danger">Submit</button>
           </form>
           <!-- End Form Section -->
 
           <!-- Table Section -->
+          <div>
+            <input type="text" bind:value={searchTerm} on:input={search} placeholder="Search..." />
+          </div>
           <div class="table-responsive">
             <table class="table table-bordered" id="dataTable" width="100%" cellspacing="0">
               <thead>
                 <tr>
-                  <th>Serial ID</th>
-                  <th>Patient Name</th>
-                  <th>Patient Diagnosis</th>
-                  <th>Patient Blood Type</th>
-                  <th>Request Purpose</th>
-                  <th>Blood Pack Type</th>
-                  <th>Urgency</th>
-                  <th>Requested Quantity</th>
-                  <th>Date Requested</th>
+                  <th on:click={() => sortTable("id")}>Serial ID{sortColumn === "id"? sortDirection === 1? " ▲": " ▼": ""}</th>
+                  <th on:click={() => sortTable("patient_name")}>Patient Name{sortColumn === "patient_name"? sortDirection === 1? " ▲": " ▼": ""}</th>
+                  <th on:click={() => sortTable("patient_diagnosis")}>Patient Diagnosis{sortColumn === "patient_diagnosis"? sortDirection === 1? " ▲": " ▼": ""}</th>
+                  <th on:click={() => sortTable("patient_bloodtype")}>Patient Blood Type{sortColumn === "patient_bloodtype"? sortDirection === 1? " ▲": " ▼": ""}</th>
+                  <th on:click={() => sortTable("request_purpose")}>Request Purpose{sortColumn === "request_purpose"? sortDirection === 1? " ▲": " ▼": ""}</th>
+                  <th on:click={() => sortTable("request_bloodpack")}>Blood Pack Type{sortColumn === "request_bloodpack"? sortDirection === 1? " ▲": " ▼": ""}</th>
+                  <th on:click={() => sortTable("request_urgency")}>Urgency{sortColumn === "request_urgency"? sortDirection === 1? " ▲": " ▼": ""}</th>
+                  <th on:click={() => sortTable("request_quantity")}>Requested Quantity{sortColumn === "request_quantity"? sortDirection === 1? " ▲": " ▼": ""}</th>
+                  <th on:click={() => sortTable("request_date")}>Date Requested{sortColumn === "request_date"? sortDirection === 1? " ▲": " ▼": ""}</th>
                   <th>Action</th>
                 </tr>
               </thead>

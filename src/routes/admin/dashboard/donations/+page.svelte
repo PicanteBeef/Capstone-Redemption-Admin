@@ -1,4 +1,5 @@
 <!-- Blood requests lands here. -->
+<!-- Blood requests lands here. -->
 
 <script>
   import { onMount } from "svelte";
@@ -8,6 +9,8 @@
 
   let data = [];
   let notification = null;
+  let originalData = [];
+  let searchTerm = '';
 
   onMount(async () => {
     const { data: records, error } = await supabase
@@ -18,6 +21,7 @@
       console.error("Error fetching data from Supabase:", error);
     } else {
       data = records;
+      originalData = records;
     }
   });
 
@@ -46,24 +50,27 @@
     });
   };
 
-  let firstName = "", lastName = "", donorBirth = "", donorSex = "", donorBlood = "", donorStatus = "", donorEmail = "", donorType = "", donorVolume = "", donorNum = "", donorPulse = "", donorBP = "", donationEvent = "";
+  // Search Visible Table
+  const search = () => {
+    if (searchTerm.trim() === '') {
+      data = originalData;
+      return;
+    }
 
-  const resetForm = () => {
-    // Reset individual form fields using reactive statements
-    firstName = "";
-    lastName = "";
-    donorBirth = "";
-    donorSex = "";
-    donorBlood = "";
-    donorStatus = "";
-    donorEmail = "";
-    donorType = "";
-    donorVolume = "";
-    donorNum = "";
-    donorPulse = "";
-    donorBP = "";
-    donationEvent = "";
+    const filteredData = originalData.filter(item => {
+      return (
+        item.first_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.last_name.toLowerCase().includes(searchTerm.toLowerCase())
+        // Add more fields as needed for your search
+      );
+    });
+
+    data = filteredData;
   };
+
+  $: search();
+
+  let firstName = "", lastName = "", donorBirth = "", donorSex = "", donorBlood = "", donorStatus = "", donorEmail = "", donorType = "", donorVolume = "", donorNum = "", donorPulse = "", donorBP = "", donationEvent = "";
 
   const handleSubmit = async () => {
   // Validate the form data (replace this with your validation logic)
@@ -102,8 +109,6 @@
     } else {
       console.log("Data submitted successfully:", data);
       setNotification({ type: "success", message: "Entry submitted successfully." });
-
-      resetForm();
 
       // Optionally, you can reload the page or fetch updated data here
       setTimeout(() => {
@@ -361,12 +366,6 @@
                 href="/admin/dashboard/donations">Donations</a
               >
             </li>
-            <li class="nav-item">
-              <a
-                class="nav-link nav-hover text-light"
-                href="/admin/dashboard/releasing">Releasing</a
-              >
-            </li>
           </ul>
           <a
             href="/"
@@ -389,6 +388,9 @@
             <i class="fa fa-droplet" /> Donation History
           </div>
           <div class="card-body">
+            <div>
+              <input type="text" bind:value={searchTerm} on:input={search} placeholder="Search..." />
+            </div>
             <div class="table-responsive">
               <table class="table table-bordered" id="dataTable" width="100%" cellspacing="0">
                 <thead>

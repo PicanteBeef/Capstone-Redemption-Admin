@@ -118,7 +118,7 @@
 
     //Donut Chart Data Visualization
     const { data: donutRecords, donutError } = await supabase
-      .from("blood_inventory")
+      .from("blood_stock")
       .select("*")
 
     console.log(donutRecords);
@@ -128,23 +128,7 @@
     } else {
       data = donutRecords;
 
-      await Promise.all(
-        bloodTypeArray.map(async (bloodType) => {
-          const { data: amountData, error: amountError } = await supabase
-            .from("blood_inventory")
-            .select("amount")
-            .filter("blood_type", "eq", bloodType);
-
-          if (amountError) {
-            console.error(`Error fetching data for ${bloodType}`, amountError);
-          } else {
-            totalSum[bloodType] = amountData.reduce(
-              (total, item) => total + (item.amount || 0),
-              0
-            );
-          }
-        }));
-        doughnutChart();
+      doughnutChart();
     }
   });
   console.log(totalSum);
@@ -159,7 +143,7 @@
         labels: bloodTypeArray,
         datasets: [
           {
-            data: bloodTypeArray.map((bloodType) => totalSum[bloodType]),
+            data: [data[0].a_pos, data[0].a_neg, data[0].b_pos, data[0].b_neg, data[0].ab_pos, data[0].ab_pos, data[0].o_pos, data[0].o_pos],
             backgroundColor: [
               "#cbd6e4",
               "#bfcbdb",
@@ -174,6 +158,13 @@
           }],
       },
       options: {
+        plugins: {
+          legend: {
+            labels: {
+              color: "white",
+            }
+          }
+        },
         maintainAspectRatio: false, // Set to false to allow manual control of the aspect ratio
         responsive: true,
         cutout: '50%',
@@ -423,7 +414,7 @@
                           <tr>
                             <td>{item.id}</td>
                             <td>{item.transaction_type}</td>
-                            <td>{item.blood_type}</td>
+                            <td>{item.entry_bloodtype}</td>
                             <td
                               >{moment(item.transaction_date).format(
                                 "L • hh:mma"
@@ -503,75 +494,7 @@
           </div>
 
           <!--Blood Inventory-->
-          <div class="card mb-3 mx-1" id="blood-inventory">
-            <div class="card-header text-danger">
-              <i class="fa fa-droplet" /> Blood Inventory
-              <a
-                href="/admin/dashboard/inventory"
-                class="btn btn-danger float-end">More Details</a
-              >
-            </div>
-            <div class="card-body">
-              <div class="table-responsive">
-                <table
-                  class="table table-bordered"
-                  id="dataTable"
-                  width="100%"
-                  cellspacing="0"
-                >
-                  <thead>
-                    <tr class="clearfix">
-                      <th
-                        >Serial ID<a href="#home"
-                          ><i class="fa-solid fa-sort float-end text-dark" /></a
-                        ></th
-                      >
-                      <th
-                        >Blood Type<a href="#home"
-                          ><i class="fa-solid fa-sort float-end text-dark" /></a
-                        ></th
-                      >
-                      <th
-                        >Amount<a href="#home"
-                          ><i class="fa-solid fa-sort float-end text-dark" /></a
-                        ></th
-                      >
-                      <th
-                        >Expiration<a href="#home"
-                          ><i class="fa-solid fa-sort float-end text-dark" /></a
-                        ></th
-                      >
-                      <th
-                        >Date Entry<a href="#home"
-                          ><i class="fa-solid fa-sort float-end text-dark" /></a
-                        ></th
-                      >
-                    </tr>
-                  </thead>
-                  <tfoot>
-                    <tr>
-                      <th>Serial ID</th>
-                      <th>Blood Type</th>
-                      <th>Amount</th>
-                      <th>Expiration</th>
-                      <th>Date Entry</th>
-                    </tr>
-                  </tfoot>
-                  <tbody>
-                    {#each data as item (item.id)}
-                      <tr>
-                        <td>{item.id}</td>
-                        <td>{item.blood_type}</td>
-                        <td>{item.amount}</td>
-                        <td>{moment(item.expiry).format("L • hh:mma")}</td>
-                        <td>{moment(item.entry_date).format("L • hh:mma")}</td>
-                      </tr>
-                    {/each}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
+          
 
           <!-- Donor Table
       <div class="card mb-3 mx-1">
