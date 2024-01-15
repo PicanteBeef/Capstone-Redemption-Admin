@@ -4,113 +4,90 @@
   import { onMount } from "svelte";
   import supabase from "/src/lib/supabaseClient.js";
   import moment from "moment";
-  import { createEventDispatcher } from "svelte";
 
-  let data = [];
-  let bloodBags = [];
-  let bloodTypeCounts = {};
-  let notification = null;
-
-  // Fetch Blood Requests Data
-  const fetchData = async () => {
-    try {
-      const { data: records, error } = await supabase
-        .from("blood_requests")
-        .select("*")
-        .order("request_date", { ascending: false });
-
-      if (error) {
-        console.error("Error fetching data from Supabase:", error);
-      } else {
-        data = records;
-      }
-    } catch (error) {
-      console.error("An unexpected error occurred:", error);
-    }
+  let formData = {
+    patientName: "",
+    diagnosis: "",
+    bloodType: "",
+    purpose: "routine",
+    bloodPackType: "whole",
+    urgency: "low",
+    bagQuantity: 1,
   };
 
-  onMount(fetchData);
+  let data = [];
+  let originalData = [];
+  let searchTerm = "";
+
+  // Insert Entry to Blood Inventory
+  async function handleSubmit(event) {
+    event.preventDefault();
+
+    // Add your submission logic here
+    const { data: record, error } = await supabase
+      .from("blood_requests")
+      .insert({
+        patient_name: formData.patientName,
+        patient_diagnosis: formData.diagnosis,
+        patient_bloodtype: formData.bloodType,
+        request_purpose: formData.purpose,
+        request_bloodpack: formData.bloodPackType,
+        request_urgency: formData.urgency,
+        request_quantity: formData.bagQuantity,
+        request_date: new Date(),
+      })
+      .select();
+
+    if (error) {
+      console.error("Error inserting data:", error);
+      return;
+    }
+
+    // Reset form data
+    formData = {
+      patientName: "",
+      diagnosis: "",
+      bloodType: "",
+      purpose: "routine",
+      bloodPackType: "whole",
+      urgency: "low",
+      bagQuantity: 1,
+    };
+
+    // Update data with the newly added record
+    data = [record[0], ...data];
+  }
+
+  // Delete Entry From Blood Inventory
+  async function deleteOne(itemToDelete) {
+    // Add your delete logic here
+    const { error } = await supabase
+      .from("blood_requests")
+      .delete()
+      .eq("id", itemToDelete);
+
+    if (error) {
+      console.error("Error", error);
+    } else {
+      // Update data after successful deletion
+      data = data.filter((item) => item.id !== itemToDelete);
+    }
+  }
 
   // Fetch Blood Inventory Data
   onMount(async () => {
     const { data: records, error } = await supabase
-      .from("blood_inventory")
+      .from("blood_requests")
       .select("*")
-      .order("blood_type", { ascending: true });
+      .order("request_date", { ascending: false });
 
     if (error) {
       console.error("Error fetching data from Supabase:", error);
     } else {
-      bloodBags = records;
-      calculateTotalBloodBags();
+      data = records;
+      originalData = records;
     }
   });
-
-  const calculateTotalBloodBags = () => {
-    bloodTypeCounts = {};
-
-    bloodBags.forEach((bag) => {
-      const bloodType = bag.blood_type;
-      bloodTypeCounts[bloodType] = (bloodTypeCounts[bloodType] || 0) + bag.amount;
-    });
-  };
-
-  // Modal Functions
-  let requestDetails;
-  let remarks = "";
-  let isOpen = false;
-
-  let rowStatus = new Map();
-  const rowStatusUpdate = new Map(rowStatus);
-
-  const dispatch = createEventDispatcher();
-
-  const openModal = (item) => {
-    requestDetails = item;
-    isOpen = true;
-  };
-
-  const closeModal = () => {
-    isOpen = false;
-    dispatch("modalClosed");
-  };
-
-  const handleCheckButtonClick = async () => {
-    // Transfer data to another table
-    const { id } = requestDetails;
-    const { data, error } = await supabase
-      .from("blood_requests_releasing")
-      .upsert([
-        {
-          id: id,
-          patient_name: requestDetails.patient_name,
-          patient_diagnosis: requestDetails.patient_diagnosis,
-          patient_bloodtype: requestDetails.patient_bloodtype,
-          request_purpose: requestDetails.request_purpose,
-          request_bloodpack: requestDetails.request_bloodpack,
-          request_urgency: requestDetails.request_urgency,
-          request_quantity: requestDetails.request_quantity,
-          request_date: requestDetails.request_date,
-          request_remarks: remarks,
-        },
-      ]);
-
-    if (error) {
-      console.error("Error transferring data:", error);
-      return;
-    }
-    console.log("Accepted!");
-    rowStatusUpdate.set(requestDetails.id, { action: "accept" });
-    rowStatus = rowStatusUpdate;
-  };
-
-  const handleXMarkButtonClick = async () => {
-    // Additional logic for x-mark button if needed
-    const { id } = requestDetails;
-    console.log("Denied!");
-    rowStatusUpdate.set(requestDetails.id, { action: "reject" });
-    rowStatus = rowStatusUpdate;
-  };
 
   let sortColumn = "";
   let sortDirection = 1; // 1 for ascending, -1 for descending
@@ -129,7 +106,7 @@
       const valueA = a[column];
       const valueB = b[column];
 
-      if (typeof valueA === 'string' && typeof valueB === 'string') {
+      if (typeof valueA === "string" && typeof valueB === "string") {
         return sortDirection * valueA.localeCompare(valueB);
       } else {
         return sortDirection * (valueA - valueB);
@@ -137,74 +114,30 @@
     });
   };
 
-  let patientName = "";
-  let diagnosis = "";
-  let bloodType = "";
-  let purpose = "";
-  let bloodPackType = "";
-  let urgency = "";
-  let bagQuantity = "";
-
-  const handleSubmit = async () => {
-  // Validate the form data (replace this with your validation logic)
-  if (!patientName || !diagnosis || !bloodType || !purpose || !bloodPackType || !urgency || !bagQuantity) {
-    setNotification({ type: "error", message: "Please fill in all fields." });
-    return;
-  }
-
-  try {
-    // Submit the form data to Supabase
-    const { data, error } = await supabase.from("blood_requests").upsert([
-      {
-        patient_name: patientName,
-        patient_diagnosis: diagnosis,
-        patient_bloodtype: bloodType,
-        request_purpose: purpose,
-        request_bloodpack: bloodPackType,
-        request_urgency: urgency,
-        request_quantity: bagQuantity,
-        request_date: new Date(),
-      },
-    ]);
-
-    if (error) {
-      console.error("Error submitting data:", error);
-      setNotification({ type: "error", message: "Error submitting data." });
-    } else {
-      console.log("Data submitted successfully:", data);
-      setNotification({ type: "success", message: "Entry submitted successfully." });
-
-      // Optionally, you can reload the page or fetch updated data here
-      setTimeout(() => {
-        location.reload();
-      }, 2000);
+  const search = () => {
+    if (searchTerm.trim() === "") {
+      data = originalData;
+      return;
     }
-  } catch (error) {
-    console.error("Error submitting data:", error);
-    setNotification({ type: "error", message: "Error submitting data." });
-  }
-};
 
-  const deleteRow = async (id) => {
-    if (confirm("Are you sure you want to delete this row?")) {
-      try {
-        const { error } = await supabase
-          .from("blood_requests")
-          .delete()
-          .eq("id", id);
+    const searchTermLower = searchTerm.toLowerCase();
 
-        if (error) {
-          console.error("Error deleting row from Supabase:", error);
-        } else {
-          console.log("Row deleted successfully");
-          // Update the local state or trigger a re-fetch of the data
-          fetchData(); // Assuming you have a fetchData function to fetch data again
+    const filteredData = originalData.filter((item) =>
+      Object.values(item).some((value) => {
+        if (typeof value === "string") {
+          return value.toLowerCase().includes(searchTermLower);
+        } else if (value instanceof Date) {
+          // Format the date to match the search term format
+          const formattedDate = moment(value).format("L • hh:mma");
+          return formattedDate.toLowerCase().includes(searchTermLower);
         }
-      } catch (error) {
-        console.error("An unexpected error occurred:", error);
-      }
-    }
+        return false;
+      })
+    );
+
+    data = filteredData;
   };
+  $: search();
 
 </script>
 
@@ -236,12 +169,10 @@
   <!-- Latest compiled JavaScript -->
   <!-- Latest compiled JavaScript -->
   <!-- Latest compiled JavaScript -->
-  <!-- Latest compiled JavaScript -->
   <script
     src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"
   ></script>
 
-  <!--Latest complied Popperjs-->
   <!--Latest complied Popperjs-->
   <!--Latest complied Popperjs-->
   <!--Latest complied Popperjs-->
@@ -330,75 +261,17 @@
       }
     }
 
-    .reqActions:hover {
-      background-color: #e3e3e8;
-    }
-
-    .modal {
-      display: none;
-      position: fixed;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      background-color: rgba(0, 0, 0, 0.5);
-      opacity: 0;
-      transition: opacity 0.3s ease-in-out;
-    }
-
-    .modal.open {
-      display: block;
-      opacity: 1;
-    }
-
-    .modal-content {
-      background-color: #fff;
-      border-radius: 8px;
-      overflow: hidden;
-      width: 60vw;
-      max-width: 50%;
-      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-      left: 25%;
-      top: 25%;
-      opacity: 0;
-      animation: modalFadeIn 0.3s ease-in-out forwards;
-    }
-
-    .modal-header {
-      background-color: #df3545;
-      padding: 10px;
-      display: flex;
-      justify-content: space-between;
-    }
-
-    .close {
-      font-size: 20px;
+    .sortButton:hover {
       cursor: pointer;
-      border: none;
-      border-radius: 0.375rem;
-      background-color: #df3545;
-      color: white;
-      margin-left: 10px;
-    }
-
-    .modal-body {
-      padding: 20px;
-    }
-
-    @keyframes modalFadeIn {
-      from {
-        opacity: 0;
-        transform: translateY(-20px);
-      }
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
+      background-color: #d9534f;
+      color: #f7f7f7;
     }
   </style>
 </head>
 
 <body class="fixed-nav bg-dark sticky-footer" id="page-top">
-  <!-- Navigation-->
+  <!-- Navigation -->
+  <!-- ... (unchanged) ... -->
   <header class="vw-100">
     <nav class="navbar navbar-expand-md navbar-dark fixed-top bg-danger w-100">
       <div class="container-fluid">
@@ -464,341 +337,244 @@
   </header>
 
   <main>
-    <!--Main Content-->
+    <!-- Main Content -->
     <div class="content-wrapper" style="margin-top: 5rem;">
-      <!-- Transaction Section-->
-      <div>
-        <!--Blood Inventory-->
-        <div class="card mb-3 mx-1" id="blood-inventory">
-          <div class="card-header text-danger">
-            <i class="fa fa-droplet" /> Blood Requests
+      <!-- Transaction Section -->
+      <!-- Blood Inventory -->
+      <div class="card mb-3 mx-1" id="blood-inventory">
+        <div class="card-header text-danger">
+          <i class="fa fa-droplet" /> Blood Request
+        </div>
+        <div class="card-body">
+          <!-- Form Section -->
+          <form on:submit={handleSubmit}>
+            <div class="mb-3">
+              <label for="patientName" class="form-label">Patient Name</label>
+              <input
+                type="text"
+                class="form-control"
+                id="patientName"
+                bind:value={formData.patientName}
+                required
+              />
+            </div>
+
+            <div class="mb-3">
+              <label for="diagnosis" class="form-label">Diagnosis</label>
+              <input
+                type="text"
+                class="form-control"
+                id="diagnosis"
+                bind:value={formData.diagnosis}
+              />
+            </div>
+
+            <div class="mb-3">
+              <label for="bloodType" class="form-label">Blood Type</label>
+              <select
+                class="form-select"
+                id="bloodType"
+                bind:value={formData.bloodType}
+              >
+                <option value="A+">A+</option>
+                <option value="A-">A-</option>
+                <option value="B+">B+</option>
+                <option value="B-">B-</option>
+                <option value="AB+">AB+</option>
+                <option value="AB-">AB-</option>
+                <option value="O+">O+</option>
+                <option value="O-">O-</option>
+              </select>
+            </div>
+
+            <div class="mb-3">
+              <label for="purpose" class="form-label">Purpose</label>
+              <select
+                class="form-select"
+                id="purpose"
+                bind:value={formData.purpose}
+              >
+                <option value="routine">Routine</option>
+                <option value="emergency">Emergency</option>
+                <option value="surgery">Surgery</option>
+              </select>
+            </div>
+
+            <div class="mb-3">
+              <label for="bloodPackType" class="form-label"
+                >Blood Pack Type</label
+              >
+              <select
+                class="form-select"
+                id="bloodPackType"
+                bind:value={formData.bloodPackType}
+              >
+                <option value="whole">Whole</option>
+                <option value="packed">Packed Red Cell</option>
+                <option value="washed">Washed Red Cell</option>
+                <option value="platelet">Platelet Concentrate</option>
+                <option value="plasma">Fresh Frozen Plasma</option>
+              </select>
+            </div>
+
+            <div class="mb-3">
+              <label for="urgency" class="form-label">Urgency</label>
+              <select
+                class="form-select"
+                id="urgency"
+                bind:value={formData.urgency}
+              >
+                <option value="low">Low (1000m)</option>
+                <option value="medium">Medium (300-600m)</option>
+                <option value="high">High (60-180m)</option>
+              </select>
+            </div>
+
+            <div class="mb-3">
+              <label for="bagQuantity" class="form-label">Bag Quantity</label>
+              <input
+                type="number"
+                class="form-control"
+                id="bagQuantity"
+                bind:value={formData.bagQuantity}
+              />
+            </div>
+
+            <button type="submit" class="btn btn-danger">Submit</button>
+            <hr />
+          </form>
+          <!-- End Form Section -->
+
+          <!-- Table Section -->
+          <div>
+            <input
+              type="text"
+              bind:value={searchTerm}
+              on:input={search}
+              placeholder="Search..."
+            />
           </div>
-          <div class="card-body">
-            <div class="table-responsive">
-              <table class="table table-bordered" id="dataTable" width="100%" cellspacing="0">
-                <thead>
-                  <tr class="clearfix">
-                    <th on:click={() => sortTable('id')}>
-                      Serial ID
-                      {sortColumn === 'id' ? (sortDirection === 1 ? ' ▲' : ' ▼') : ''}
-                    </th>
-                    <th on:click={() => sortTable('patient_bloodtype')}>
-                      Patient Blood Type
-                      {sortColumn === 'patient_bloodtype' ? (sortDirection === 1 ? ' ▲' : ' ▼') : ''}
-                    </th>
-                    <th on:click={() => sortTable('request_urgency')}>
-                      Urgency
-                      {sortColumn === 'request_urgency' ? (sortDirection === 1 ? ' ▲' : ' ▼') : ''}
-                    </th>
-                    <th on:click={() => sortTable('request_quantity')}>
-                      Requested Quantity
-                      {sortColumn === 'request_quantity' ? (sortDirection === 1 ? ' ▲' : ' ▼') : ''}
-                    </th>
-                    <th on:click={() => sortTable('request_date')}>
-                      Date Requested
-                      {sortColumn === 'request_date' ? (sortDirection === 1 ? ' ▲' : ' ▼') : ''}
-                    </th>
-                    <th>Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {#each data as item (item.id)}
+          <div class="table-responsive">
+            <table
+              class="table table-bordered"
+              id="dataTable"
+              width="100%"
+              cellspacing="0"
+            >
+              <thead>
+                <tr>
+                  <th on:click={() => sortTable("id")}
+                    >Serial ID{sortColumn === "id"
+                      ? sortDirection === 1
+                        ? " ▲"
+                        : " ▼"
+                      : ""}</th
+                  >
+                  <th on:click={() => sortTable("patient_name")}
+                    >Patient Name{sortColumn === "patient_name"
+                      ? sortDirection === 1
+                        ? " ▲"
+                        : " ▼"
+                      : ""}</th
+                  >
+                  <th on:click={() => sortTable("patient_diagnosis")}
+                    >Patient Diagnosis{sortColumn === "patient_diagnosis"
+                      ? sortDirection === 1
+                        ? " ▲"
+                        : " ▼"
+                      : ""}</th
+                  >
+                  <th on:click={() => sortTable("patient_bloodtype")}
+                    >Patient Blood Type{sortColumn === "patient_bloodtype"
+                      ? sortDirection === 1
+                        ? " ▲"
+                        : " ▼"
+                      : ""}</th
+                  >
+                  <th on:click={() => sortTable("request_purpose")}
+                    >Request Purpose{sortColumn === "request_purpose"
+                      ? sortDirection === 1
+                        ? " ▲"
+                        : " ▼"
+                      : ""}</th
+                  >
+                  <th on:click={() => sortTable("request_bloodpack")}
+                    >Blood Pack Type{sortColumn === "request_bloodpack"
+                      ? sortDirection === 1
+                        ? " ▲"
+                        : " ▼"
+                      : ""}</th
+                  >
+                  <th on:click={() => sortTable("request_urgency")}
+                    >Urgency{sortColumn === "request_urgency"
+                      ? sortDirection === 1
+                        ? " ▲"
+                        : " ▼"
+                      : ""}</th
+                  >
+                  <th on:click={() => sortTable("request_quantity")}
+                    >Requested Quantity{sortColumn === "request_quantity"
+                      ? sortDirection === 1
+                        ? " ▲"
+                        : " ▼"
+                      : ""}</th
+                  >
+                  <th on:click={() => sortTable("request_date")}
+                    >Date Requested{sortColumn === "request_date"
+                      ? sortDirection === 1
+                        ? " ▲"
+                        : " ▼"
+                      : ""}</th
+                  >
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tfoot>
+                <tr>
+                  <th>Serial ID</th>
+                  <th>Patient Name</th>
+                  <th>Patient Diagnosis</th>
+                  <th>Patient Blood Type</th>
+                  <th>Request Purpose</th>
+                  <th>Blood Pack Type</th>
+                  <th>Urgency</th>
+                  <th>Requested Quantity</th>
+                  <th>Date Requested</th>
+                  <th>Action</th>
+                </tr>
+              </tfoot>
+              <tbody>
+                {#each data as item (item.id)}
                   <tr>
                     <td>{item.id}</td>
+                    <td>{item.patient_name}</td>
+                    <td>{item.patient_diagnosis}</td>
                     <td>{item.patient_bloodtype}</td>
+                    <td>{item.request_purpose}</td>
+                    <td>{item.request_bloodpack}</td>
                     <td>{item.request_urgency}</td>
                     <td>{item.request_quantity}</td>
                     <td>{moment(item.request_date).format("L • hh:mma")}</td>
                     <td>
-                      <button class="btn btn-danger rounded" on:click={() => deleteRow(item.id)}>
-                        Delete
-                      </button>
-                    </td>
-                    <td>
-                      <button class="btn btn-danger rounded" on:click={() => openModal(item)}>
-                        Review Request
-                      </button>
+                      <button
+                        on:click={() => deleteOne(item.id)}
+                        class="btn btn-danger btn-sm">Delete</button
+                      >
                     </td>
                   </tr>
-                  {/each}
-                </tbody>
-              </table>
-            </div>
-          </div>
-          <!--Modal-->
-          {#if isOpen}
-            <div class="modal open">
-              <div class="modal-content">
-                <div class="modal-header">
-                  <span
-                    style="margin-left: 10px; color: white; font-weight: bold;"
-                    >Request Details</span
-                  >
-                  <button class="close" on:click={closeModal}>&times;</button>
-                </div>
-                <div class="modal-body">
-                  {#if requestDetails}
-                    <div class="row">
-                      <!-- Patient Details -->
-                      <div class="col">
-                        <div class="d-flex flex-column">
-                          <span class="heading d-block fw-bold">Serial ID:</span
-                          >
-                          <span class="subheadings">{requestDetails.id}</span>
-                        </div>
-                      </div>
-                      <div class="col">
-                        <div class="d-flex flex-column">
-                          <span class="heading d-block fw-bold"
-                            >Patient Name:</span
-                          >
-                          <span class="subheadings"
-                            >{requestDetails.patient_name}</span
-                          >
-                        </div>
-                      </div>
-                      <div class="col">
-                        <div class="d-flex flex-column justify-content-center">
-                          <span class="heading d-block fw-bold">Diagnosis:</span
-                          >
-                          <span class="subheadings"
-                            >{requestDetails.patient_diagnosis}</span
-                          >
-                        </div>
-                      </div>
-                      <div class="col">
-                        <div class="d-flex flex-column">
-                          <span class="heading d-block fw-bold"
-                            >Blood Type:</span
-                          >
-                          <span class="subheadings"
-                            >{requestDetails.patient_bloodtype}</span
-                          >
-                        </div>
-                      </div>
-                    </div>
-                    <!-- Request Details -->
-                    <div class="row">
-                      <div class="col">
-                        <div class="d-flex flex-column">
-                          <span class="heading d-block fw-bold"
-                            >Request Purpose:</span
-                          >
-                          <span class="subheadings"
-                            >{requestDetails.request_purpose}</span
-                          >
-                        </div>
-                      </div>
-                      <div class="col">
-                        <div class="d-flex flex-column">
-                          <span class="heading d-block fw-bold"
-                            >Requested Bloodpack:</span
-                          >
-                          <span class="subheadings"
-                            >{requestDetails.request_bloodpack}</span
-                          >
-                        </div>
-                      </div>
-                      <div class="col">
-                        <div class="d-flex flex-column justify-content-center">
-                          <span class="heading d-block fw-bold">Urgency:</span>
-                          <span class="subheadings"
-                            >{requestDetails.request_urgency}</span
-                          >
-                        </div>
-                      </div>
-                      <div class="col">
-                        <div class="d-flex flex-column">
-                          <span class="heading d-block fw-bold"
-                            >Date Requested:</span
-                          >
-                          <span class="subheadings">
-                            {moment(requestDetails.request_date).format(
-                              "L • hh:mma"
-                            )}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                    <!-- Request Action -->
-                    <div class="row">
-                      <div class="col">
-                        <div class="d-flex flex-column">
-                          <span class="heading d-block fw-bold">Action:</span>
-                          <span class="subheadings">
-                            {#if !rowStatus.get(requestDetails.id)}
-                              <button
-                                class="btn"
-                                on:click={handleCheckButtonClick}
-                              >
-                                <i
-                                  class="fa-solid fa-square-check fs-3 text-success"
-                                />
-                              </button>
-                              <button
-                                class="btn"
-                                on:click={handleXMarkButtonClick}
-                              >
-                                <i
-                                  class="fa-solid fa-square-xmark fs-3 text-danger"
-                                />
-                              </button>
-                            {:else if rowStatus.get(requestDetails.id).action === "accept"}
-                              <p>Accepted</p>
-                            {:else if rowStatus.get(requestDetails.id).action === "reject"}
-                              <p>Denied!</p>
-                            {/if}
-                          </span>
-                        </div>
-                      </div>
-                      <div class="col">
-                        <div class="d-flex flex-column">
-                          <span class="heading d-block fw-bold">Remarks:</span>
-                          <span class="subheadings">
-                            {#if !rowStatus.get(requestDetails.id)}
-                              <form action="">
-                                <textarea
-                                  bind:value={remarks}
-                                  class="form-control"
-                                  style="min-width: 100%; resize:none"
-                                  placeholder="Additional remarks"
-                                />
-                              </form>
-                            {:else}
-                              <form action="">
-                                <textarea
-                                  bind:value={remarks}
-                                  class="form-control"
-                                  style="min-width: 100%; resize:none"
-                                  disabled
-                                  readonly
-                                />
-                              </form>
-                            {/if}
-                          </span>
-                        </div>
-                      </div>
-                      <div class="row">
-                        <div class="col">
-                          <div class="d-flex flex-column">
-                            <div class="d-flex flex-wrap">
-                              <span class="heading d-block fw-bold"
-                                >Blood in Stock:</span
-                              >
-                              <div class="row">
-                                {#each Object.entries(bloodTypeCounts) as [bloodType, count]}
-                                  <div class="col-sm">
-                                    <span class="me-3">
-                                      <span class="badge bg-danger"
-                                        >{bloodType}</span
-                                      >
-                                      <span class="badge bg-light text-dark"
-                                        >{count}</span
-                                      >
-                                    </span>
-                                  </div>
-                                {/each}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  {/if}
-                </div>
-              </div>
-            </div>
-          {/if}
-        </div>
-        <!-- Notification Section -->
-        {#if notification}
-          <div class={`alert alert-${notification.type}`} role="alert">
-            {notification.message}
-          </div>
-        {/if}
-        <!-- end of notifications-->
-
-        <!-- Entries Form -->
-        <div class="card mb-3 mx-1" id="blood-request-form">
-          <div class="card-header text-danger">
-            <i class="fa fa-droplet" /> Blood Request Form
-          </div>
-          <div class="card-body">
-            <form on:submit={handleSubmit}>
-              <div class="row">
-                <!-- Column 1 -->
-                <div class="col-md-6">
-                  <div class="mb-3">
-                    <label for="patientName" class="form-label">Patient Name</label>
-                    <input type="text" class="form-control" id="patientName" bind:value={patientName} required />
-                  </div>
-                  <div class="mb-3">
-                    <label for="diagnosis" class="form-label">Diagnosis</label>
-                    <input type="text" class="form-control" id="diagnosis" bind:value={diagnosis} required />
-                  </div>
-                  <div class="mb-3">
-                    <label for="bloodType" class="form-label">Blood Type</label>
-                    <select class="form-control" id="bloodType" bind:value={bloodType} required>
-                      <option value="A+">A+</option>
-                      <option value="A-">A-</option>
-                      <option value="B+">B+</option>
-                      <option value="B-">B-</option>
-                      <option value="AB+">AB+</option>
-                      <option value="AB-">AB-</option>
-                      <option value="O+">O+</option>
-                      <option value="O-">O-</option>
-                    </select>
-                  </div>
-                  <div class="mb-3">
-                    <label for="purpose" class="form-label">Purpose</label>
-                    <select class="form-control" id="purpose" bind:value={purpose} required>
-                      <option value="Routine">Routine</option>
-                      <option value="Emergency">Emergency</option>
-                      <option value="Surgery">Surgery</option>
-                    </select>
-                  </div>
-                </div>
-                <!-- Column 2 -->
-                <div class="col-md-6">
-                  <div class="mb-3">
-                    <label for="bloodPackType" class="form-label">Blood Pack Type</label>
-                    <select class="form-control" id="bloodPackType" bind:value={bloodPackType} required>
-                      <option value="Whole">Whole</option>
-                      <option value="Packed Red Cell">Packed Red Cell</option>
-                      <option value="Washed Red Cell">Washed Red Cell</option>
-                      <option value="Platelet Concentrate">Platelet Concentrate</option>
-                      <option value="Fresh Frozen Plasma">Fresh Frozen Plasma</option>
-                    </select>
-                  </div>
-                  <div class="mb-3">
-                    <label for="urgency" class="form-label">Urgency</label>
-                    <select class="form-control" id="urgency" bind:value={urgency} required>
-                      <option value="Low (1000m)">Low (1000m)</option>
-                      <option value="Medium (300-600m)">Medium (300-600m)</option>
-                      <option value="High (60-180m)">High (60-180m)</option>
-                    </select>
-                  </div>
-                  <div class="mb-3">
-                    <label for="bagQuantity" class="form-label">Bag Quantity</label>
-                    <input type="number" class="form-control" id="bagQuantity" bind:value={bagQuantity} required />
-                  </div>
-                </div>
-              </div>
-              <button type="submit" class="btn btn-danger">Submit Request</button>
-            </form>
+                {/each}
+              </tbody>
+            </table>
           </div>
         </div>
-        <!--End of entries form-->
-
-        <!--footer-->
-        <footer class="sticky-footer">
-          <div class="container">
-            <div class="text-center text-danger">
-              <small>For Capstone use only.</small>
-            </div>
-          </div>
-        </footer>
       </div>
+      <footer class="sticky-footer">
+        <div class="container">
+          <div class="text-center text-danger">
+            <small>For Capstone use only.</small>
+          </div>
+        </div>
+      </footer>
     </div>
   </main>
 </body>

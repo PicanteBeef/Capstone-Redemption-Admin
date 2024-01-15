@@ -4,6 +4,31 @@
     import { onMount } from "svelte";
     import supabase from "/src/lib/supabaseClient.js";
     import moment from "moment";
+
+    let sortColumn = "";
+    let sortDirection = 1; // 1 for ascending, -1 for descending
+
+    const sortTable = (column) => {
+    if (column === sortColumn) {
+      // Reverse the sort direction if the same column is clicked
+      sortDirection = -sortDirection;
+    } else {
+      // Set the new sort column and reset the direction
+      sortColumn = column;
+      sortDirection = 1;
+    }
+
+    data = data.slice().sort((a, b) => {
+      const valueA = a[column];
+      const valueB = b[column];
+
+      if (typeof valueA === "string" && typeof valueB === "string") {
+        return sortDirection * valueA.localeCompare(valueB);
+      } else {
+        return sortDirection * (valueA - valueB);
+      }
+    });
+  };
   
     let formData = {
       bloodType: "",
@@ -12,6 +37,8 @@
     };
   
     let data = [];
+    let originalData = [];
+    let searchTerm = '';
     let data1 = [];
   
     // Insert Entry to Blood Inventory
@@ -64,7 +91,18 @@
   
       data = [record[0], ...data];
     }
-  
+
+    const bloodValuePair = {
+      "a_pos": "A+",
+      "a_neg": "A-",
+      "b_pos": "B+",
+      "b_neg": "B-",
+      "ab_pos": "AB+",
+      "ab_neg": "AB-",
+      "o_pos": "O+",
+      "o_neg": "O-",
+    }
+    
       //Fetch Blood Transaction Data
     onMount(async () => {
       const { data: records, error } = await supabase
@@ -76,8 +114,28 @@
         console.error("Error fetching data from Supabase:", error);
       } else {
         data = records;
+        originalData = records;
       }
     });
+
+  // Search Visible Table  
+  const search = () => {
+    if (searchTerm.trim() === '') {
+      data = originalData;
+      return;
+    }
+
+    const filteredData = originalData.filter(item => {
+      return (
+        item.entry_bloodtype.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.transaction_date.toLowerCase().includes(searchTerm.toLowerCase())
+        // Add more fields as needed for your search
+      );
+    });
+
+    data = filteredData;
+  };
+  $: search();
   </script>
   
   <head>
@@ -264,6 +322,9 @@
               <i class="fa fa-droplet" /> Blood Transactions
             </div>
             <div class="card-body">
+              <div>
+                <input type="text" bind:value={searchTerm} on:input={search} placeholder="Search..." />
+              </div>
               <div class="table-responsive">
                 <table
                   class="table table-bordered"
@@ -273,11 +334,11 @@
                 >
                   <thead>
                     <tr class="clearfix">
-                        <th>Serial ID</th>
-                        <th>Blood Type</th>
-                        <th>Amount</th>
-                        <th>Transaction Date</th>
-                        <th>Transaction Type</th>
+                      <th on:click={() => sortTable("id")}>Serial ID{sortColumn === "id"? sortDirection === 1? " ▲": " ▼": ""}</th>
+                      <th on:click={() => sortTable("entry_bloodtype")}>Blood Type{sortColumn === "entry_bloodtype"? sortDirection === 1? " ▲": " ▼": ""}</th>
+                      <th on:click={() => sortTable("amount")}>Amount{sortColumn === "amount"? sortDirection === 1? " ▲": " ▼": ""}</th>
+                      <th on:click={() => sortTable("transaction_date")}>Transaction Date{sortColumn === "transaction_date"? sortDirection === 1? " ▲": " ▼": ""}</th>
+                      <th on:click={() => sortTable("transaction_type")}>Transaction Type{sortColumn === "transaction_type"? sortDirection === 1? " ▲": " ▼": ""}</th>
                     </tr>
                   </thead>
                   <tfoot>
@@ -293,7 +354,7 @@
                     {#each data as item (item.id)}
                       <tr>
                         <td>{item.id}</td>
-                        <td>{item.blood_type}</td>
+                        <td>{item.entry_bloodtype}</td>
                         <td>{item.amount}</td>
                         <td>{moment(item.transaction_date).format("L • hh:mma")}</td>
                         <td>{item.transaction_type}</td>

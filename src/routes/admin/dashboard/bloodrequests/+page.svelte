@@ -6,11 +6,11 @@
   import moment from "moment";
   import { createEventDispatcher } from "svelte";
 
-  let data = [];
-  let bloodBags = [];
-  let bloodTypeCounts = {};
-
-  // Fetch Blood Requests Data
+    let data = [];
+    let originalData = [];
+    let searchTerm = '';
+    
+  //Fetch Blood Requests Data
   onMount(async () => {
     const { data: records, error } = await supabase
       .from("blood_requests")
@@ -21,10 +21,31 @@
       console.error("Error fetching data from Supabase:", error);
     } else {
       data = records;
+      originalData = records;
     }
   });
 
-  // Fetch Blood Inventory Data
+    
+  const search = () => {
+    if (searchTerm.trim() === '') {
+      data = originalData;
+      return;
+    }
+
+    const filteredData = originalData.filter(item => {
+      return (
+        item.request_urgency.toLowerCase().includes(searchTerm.toLowerCase())
+        // Add more fields as needed for your search
+      );
+    });
+
+    data = filteredData;
+  };
+  $: search(); 
+  
+
+  let bloodBags = [];
+
   onMount(async () => {
     const { data: records, error } = await supabase
       .from("blood_inventory")
@@ -35,20 +56,23 @@
       console.error("Error fetching data from Supabase:", error);
     } else {
       bloodBags = records;
-      calculateTotalBloodBags();
     }
   });
 
-  const calculateTotalBloodBags = () => {
-    bloodTypeCounts = {};
+  const calculateTotalBloodBags = (bags) => {
+    const bloodTypeCounts = {};
 
-    bloodBags.forEach((bag) => {
+    bags.forEach((bag) => {
       const bloodType = bag.blood_type;
-      bloodTypeCounts[bloodType] = (bloodTypeCounts[bloodType] || 0) + bag.amount;
+      bloodTypeCounts[bloodType] =
+        (bloodTypeCounts[bloodType] || 0) + bag.amount;
     });
-  };
 
-  // Modal Functions
+    return bloodTypeCounts;
+  };
+  $: bloodTypeCounts = calculateTotalBloodBags(bloodBags);
+
+  //Modal Functions
   let requestDetails;
   let remarks = "";
   let isOpen = false;
@@ -69,33 +93,84 @@
   };
 
   const handleCheckButtonClick = async () => {
-    // Transfer data to another table
-    const { id } = requestDetails;
-    const { data, error } = await supabase
-      .from("blood_requests_releasing")
-      .upsert([
-        {
-          id: id,
-          patient_name: requestDetails.patient_name,
-          patient_diagnosis: requestDetails.patient_diagnosis,
-          patient_bloodtype: requestDetails.patient_bloodtype,
-          request_purpose: requestDetails.request_purpose,
-          request_bloodpack: requestDetails.request_bloodpack,
-          request_urgency: requestDetails.request_urgency,
-          request_quantity: requestDetails.request_quantity,
-          request_date: requestDetails.request_date,
-          request_remarks: remarks,
-        },
-      ]);
+  // Transfer data to another table
+  const { id } = requestDetails;
+  const { data, error } = await supabase
+    .from("blood_transactions")
+    .upsert([
+      {
+        // Map the data accordingly if needed
+        id: id,
+        entry_bloodtype: requestDetails.patient_bloodtype,
+        amount: requestDetails.request_quantity,
+        transaction_type: "Blood Out"
+      },
+    ]);
 
-    if (error) {
-      console.error("Error transferring data:", error);
-      return;
-    }
-    console.log("Accepted!");
-    rowStatusUpdate.set(requestDetails.id, { action: "accept" });
-    rowStatus = rowStatusUpdate;
-  };
+  if (error) {
+    console.error("Error transferring data:", error);
+    return;
+  }
+
+  console.log("Accepted!");
+  rowStatusUpdate.set(requestDetails.id, { action: "accept" });
+  rowStatus = rowStatusUpdate;
+  console.log(requestDetails);
+
+  const bloodValuePair = {
+    "A+": "a_pos",
+    "A-": "a_neg",
+    "B+": "b_pos",
+    "B-": "b_neg",
+    "AB+": "ab_pos",
+    "AB-": "ab_neg",
+    "O+": "o_pos",
+    "O-": "o_neg",
+  }
+  const requestBloodtype = bloodValuePair[requestDetails.patient_bloodtype];
+  console.log(requestBloodtype);
+
+  const { data: dataZ, errorZ } = await supabase
+      .from('blood_stock')
+      .select(requestBloodtype)
+
+      if (errorZ) {
+        console.error('Error fetching data from Supabase:', error.message);
+        return;
+      }
+
+      console.log(dataZ);
+      const currentCount = dataZ[0]?.[requestBloodtype] || 0;
+      const newTotal = parseInt(currentCount) - parseInt(requestDetails.request_quantity);
+
+  const { updateError } = await supabase
+      .from('blood_stock')
+      .update({ [requestBloodtype]: newTotal})
+      .eq('id', 1);
+
+      if (updateError) {
+        console.error('Error updating data in Supabase:', updateError.message);
+        console.log('tite ni liemel joshua dumangon lacanilao ng san jose del monte bulacan');
+        return;
+      }
+      console.log("Blood Stock Updated Successfully.");
+
+  // Assuming the original table is named 'blood_requests'
+  const deleteResponse = await supabase
+    .from("blood_requests")
+    .delete()
+    .eq("id", id);
+
+  // Check for errors in the delete operation
+  if (deleteResponse.error) {
+    console.error("Error deleting data from original table:", deleteResponse.error);
+    // You may want to handle the error appropriately, e.g., retry or show a user-friendly message
+    return;
+  }
+
+  // Data has been successfully transferred to the destination table and deleted from the original table
+  // console.log("Data transferred and deleted successfully!");
+};
 
   const handleXMarkButtonClick = async () => {
     // Additional logic for x-mark button if needed
@@ -122,13 +197,14 @@
       const valueA = a[column];
       const valueB = b[column];
 
-      if (typeof valueA === 'string' && typeof valueB === 'string') {
+      if (typeof valueA === "string" && typeof valueB === "string") {
         return sortDirection * valueA.localeCompare(valueB);
       } else {
         return sortDirection * (valueA - valueB);
       }
     });
   };
+  
 </script>
 
 <head>
@@ -160,10 +236,12 @@
   <!-- Latest compiled JavaScript -->
   <!-- Latest compiled JavaScript -->
   <!-- Latest compiled JavaScript -->
+  <!-- Latest compiled JavaScript -->
   <script
     src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"
   ></script>
 
+  <!--Latest complied Popperjs-->
   <!--Latest complied Popperjs-->
   <!--Latest complied Popperjs-->
   <!--Latest complied Popperjs-->
@@ -394,32 +472,54 @@
         <!--Blood Inventory-->
         <div class="card mb-3 mx-1" id="blood-inventory">
           <div class="card-header text-danger">
-            <i class="fa fa-droplet" /> Blood Requests
+            <i class="fa fa-droplet" /> Blood Request
           </div>
           <div class="card-body">
+            <div>
+              <input type="text" bind:value={searchTerm} on:input={search} placeholder="Search..." />
+            </div>
             <div class="table-responsive">
-              <table class="table table-bordered" id="dataTable" width="100%" cellspacing="0">
+              
+              <table
+                class="table table-bordered"
+                id="dataTable"
+                width="100%"
+                cellspacing="0"
+              >
                 <thead>
-                  <tr class="clearfix">
-                    <th on:click={() => sortTable('id')}>
-                      Serial ID
-                      {sortColumn === 'id' ? (sortDirection === 1 ? ' ▲' : ' ▼') : ''}
-                    </th>
-                    <th on:click={() => sortTable('patient_bloodtype')}>
+                  <tr class="clearfix" style="">
+                    <th on:click={() => sortTable("id")}>Serial ID{sortColumn === "id"? sortDirection === 1? " ▲": " ▼": ""}</th>
+                    <th on:click={() => sortTable("patient_bloodtype")}>
                       Patient Blood Type
-                      {sortColumn === 'patient_bloodtype' ? (sortDirection === 1 ? ' ▲' : ' ▼') : ''}
+                      {sortColumn === "patient_bloodtype"
+                        ? sortDirection === 1
+                          ? " ▲"
+                          : " ▼"
+                        : ""}
                     </th>
-                    <th on:click={() => sortTable('request_urgency')}>
+                    <th on:click={() => sortTable("request_urgency")}>
                       Urgency
-                      {sortColumn === 'request_urgency' ? (sortDirection === 1 ? ' ▲' : ' ▼') : ''}
+                      {sortColumn === "request_urgency"
+                        ? sortDirection === 1
+                          ? " ▲"
+                          : " ▼"
+                        : ""}
                     </th>
-                    <th on:click={() => sortTable('request_quantity')}>
+                    <th on:click={() => sortTable("request_quantity")}>
                       Requested Quantity
-                      {sortColumn === 'request_quantity' ? (sortDirection === 1 ? ' ▲' : ' ▼') : ''}
+                      {sortColumn === "request_quantity"
+                        ? sortDirection === 1
+                          ? " ▲"
+                          : " ▼"
+                        : ""}
                     </th>
-                    <th on:click={() => sortTable('request_date')}>
+                    <th on:click={() => sortTable("request_date")}>
                       Date Requested
-                      {sortColumn === 'request_date' ? (sortDirection === 1 ? ' ▲' : ' ▼') : ''}
+                      {sortColumn === "request_date"
+                        ? sortDirection === 1
+                          ? " ▲"
+                          : " ▼"
+                        : ""}
                     </th>
                     <th>Action</th>
                   </tr>
@@ -436,18 +536,21 @@
                 </tfoot>
                 <tbody>
                   {#each data as item (item.id)}
-                  <tr>
-                    <td>{item.id}</td>
-                    <td>{item.patient_bloodtype}</td>
-                    <td>{item.request_urgency}</td>
-                    <td>{item.request_quantity}</td>
-                    <td>{moment(item.request_date).format("L • hh:mma")}</td>
-                    <td>
-                      <button class="btn btn-danger rounded" on:click={() => openModal(item)}>
-                        Review Request
-                      </button>
-                    </td>
-                  </tr>
+                    <tr>
+                      <td>{item.id}</td>
+                      <td>{item.patient_bloodtype}</td>
+                      <td>{item.request_urgency}</td>
+                      <td>{item.request_quantity}</td>
+                      <td>{moment(item.request_date).format("L • hh:mma")}</td>
+                      <td>
+                        <button
+                          class="btn btn-danger rounded"
+                          on:click={() => openModal(item)}
+                        >
+                          Review Request
+                        </button>
+                      </td>
+                    </tr>
                   {/each}
                 </tbody>
               </table>
