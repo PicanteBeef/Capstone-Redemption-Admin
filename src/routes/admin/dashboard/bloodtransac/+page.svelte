@@ -78,6 +78,31 @@
         data = records;
       }
     });
+
+  // Search Visible Table  
+  const search = () => {
+    if (searchTerm.trim() === '') {
+      data = originalData;
+      return;
+    }
+
+    const searchTermLower = searchTerm.toLocaleLowerCase();
+
+    const filteredData = originalData.filter((item) => 
+      Object.values(item).some((value) => {
+        if(typeof value === "string") {
+          return value.toLocaleLowerCase().includes(searchTermLower);
+        } else if (value instanceof Date) {
+          const formattedData = moment(value).format("L • hh:mma");
+          return formattedData.toLocaleLowerCase().includes(searchTermLower);
+        }
+        return false;
+      })
+    );
+      
+    data = filteredData;
+  };
+  $: search(); 
   </script>
   
   <head>

@@ -22,6 +22,60 @@
     }
   });
 
+    
+  const search = () => {
+    if (searchTerm.trim() === '') {
+      data = originalData;
+      return;
+    }
+
+    const searchTermLower = searchTerm.toLocaleLowerCase();
+
+    const filteredData = originalData.filter((item) => 
+      Object.values(item).some((value) => {
+        if(typeof value === "string") {
+          return value.toLocaleLowerCase().includes(searchTermLower);
+        } else if (value instanceof Date) {
+          const formattedData = moment(value).format("L • hh:mma");
+          return formattedData.toLocaleLowerCase().includes(searchTermLower);
+        }
+        return false;
+      })
+    );
+      
+    data = filteredData;
+  };
+  $: search();  
+  
+
+  let bloodBags = [];
+
+  onMount(async () => {
+    const { data: records, error } = await supabase
+      .from("blood_inventory")
+      .select("*")
+      .order("blood_type", { ascending: true });
+
+    if (error) {
+      console.error("Error fetching data from Supabase:", error);
+    } else {
+      bloodBags = records;
+    }
+  });
+
+  const calculateTotalBloodBags = (bags) => {
+    const bloodTypeCounts = {};
+
+    bags.forEach((bag) => {
+      const bloodType = bag.blood_type;
+      bloodTypeCounts[bloodType] =
+        (bloodTypeCounts[bloodType] || 0) + bag.amount;
+    });
+
+    return bloodTypeCounts;
+  };
+  $: bloodTypeCounts = calculateTotalBloodBags(bloodBags);
+
   //Modal Functions
   let requestDetails;
   let remarks='';

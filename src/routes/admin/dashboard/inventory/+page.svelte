@@ -108,6 +108,56 @@
       data = records;
     }
   });
+
+  let sortColumn = "";
+  let sortDirection = 1; // 1 for ascending, -1 for descending
+
+  const sortTable = (column) => {
+    if (column === sortColumn) {
+      // Reverse the sort direction if the same column is clicked
+      sortDirection = -sortDirection;
+    } else {
+      // Set the new sort column and reset the direction
+      sortColumn = column;
+      sortDirection = 1;
+    }
+
+    data = data.slice().sort((a, b) => {
+      const valueA = a[column];
+      const valueB = b[column];
+
+      if (typeof valueA === "string" && typeof valueB === "string") {
+        return sortDirection * valueA.localeCompare(valueB);
+      } else {
+        return sortDirection * (valueA - valueB);
+      }
+    });
+  };
+
+  const search = () => {
+    if (searchTerm.trim() === '') {
+      data = originalData;
+      return;
+    }
+
+    const searchTermLower = searchTerm.toLocaleLowerCase();
+
+    const filteredData = originalData.filter((item) => 
+      Object.values(item).some((value) => {
+        if(typeof value === "string") {
+          return value.toLocaleLowerCase().includes(searchTermLower);
+        } else if (value instanceof Date) {
+          const formattedData = moment(value).format("L • hh:mma");
+          return formattedData.toLocaleLowerCase().includes(searchTermLower);
+        }
+        return false;
+      })
+    );
+      
+    data = filteredData;
+  };
+  $: search(); 
+  
 </script>
 
 <head>
