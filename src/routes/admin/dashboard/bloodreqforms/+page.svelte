@@ -138,7 +138,6 @@
     data = filteredData;
   };
   $: search();
-
 </script>
 
 <head>
@@ -169,10 +168,12 @@
   <!-- Latest compiled JavaScript -->
   <!-- Latest compiled JavaScript -->
   <!-- Latest compiled JavaScript -->
+  <!-- Latest compiled JavaScript -->
   <script
     src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"
   ></script>
 
+  <!--Latest complied Popperjs-->
   <!--Latest complied Popperjs-->
   <!--Latest complied Popperjs-->
   <!--Latest complied Popperjs-->
@@ -325,6 +326,12 @@
                 href="/admin/dashboard/donations">Donations</a
               >
             </li>
+            <li class="nav-item">
+              <a
+                class="nav-link nav-hover text-light"
+                href="/admin/dashboard/reports">Reports</a
+              >
+            </li>
           </ul>
           <a
             href="/"
@@ -341,109 +348,121 @@
     <div class="content-wrapper" style="margin-top: 5rem;">
       <!-- Transaction Section -->
       <!-- Blood Inventory -->
-      <br>
       <div class="card mb-3 mx-1" id="blood-inventory">
         <div class="card-header text-danger">
           <i class="fa fa-droplet" /> Blood Request
         </div>
+
         <div class="card-body">
           <!-- Form Section -->
-          <form on:submit={handleSubmit}>
-            <div class="mb-3">
-              <label for="patientName" class="form-label">Patient Name</label>
-              <input
-                type="text"
-                class="form-control"
-                id="patientName"
-                bind:value={formData.patientName}
-                required
-              />
+          <form on:submit={handleSubmit} class="row g-3">
+            <!-- First Column -->
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label for="patientName" class="form-label">Patient Name</label>
+                <input
+                  type="text"
+                  class="form-control"
+                  id="patientName"
+                  bind:value={formData.patientName}
+                  required
+                />
+              </div>
+
+              <div class="mb-3">
+                <label for="diagnosis" class="form-label">Diagnosis</label>
+                <input
+                  type="text"
+                  class="form-control"
+                  id="diagnosis"
+                  bind:value={formData.diagnosis}
+                />
+              </div>
+
+              <div class="mb-3">
+                <label for="bloodType" class="form-label">Blood Type</label>
+                <select
+                  class="form-select"
+                  id="bloodType"
+                  bind:value={formData.bloodType}
+                >
+                  <option value="A+">A+</option>
+                  <option value="A-">A-</option>
+                  <option value="B+">B+</option>
+                  <option value="B-">B-</option>
+                  <option value="AB+">AB+</option>
+                  <option value="AB-">AB-</option>
+                  <option value="O+">O+</option>
+                  <option value="O-">O-</option>
+                </select>
+              </div>
+
+              <div class="mb-3">
+                <label for="purpose" class="form-label">Purpose</label>
+                <select
+                  class="form-select"
+                  id="purpose"
+                  bind:value={formData.purpose}
+                >
+                  <option value="routine">Routine</option>
+                  <option value="emergency">Emergency</option>
+                  <option value="surgery">Surgery</option>
+                </select>
+              </div>
             </div>
 
-            <div class="mb-3">
-              <label for="diagnosis" class="form-label">Diagnosis</label>
-              <input
-                type="text"
-                class="form-control"
-                id="diagnosis"
-                bind:value={formData.diagnosis}
-              />
+            <!-- Second Column -->
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label for="bloodPackType" class="form-label"
+                  >Blood Pack Type</label
+                >
+                <select
+                  class="form-select"
+                  id="bloodPackType"
+                  bind:value={formData.bloodPackType}
+                >
+                  <option value="whole">Whole</option>
+                  <option value="packed">Packed Red Cell</option>
+                  <option value="washed">Washed Red Cell</option>
+                  <option value="platelet">Platelet Concentrate</option>
+                  <option value="plasma">Fresh Frozen Plasma</option>
+                </select>
+              </div>
+
+              <div class="mb-3">
+                <label for="urgency" class="form-label">Urgency</label>
+                <select
+                  class="form-select"
+                  id="urgency"
+                  bind:value={formData.urgency}
+                >
+                  <option value="low">Low (1000m)</option>
+                  <option value="medium">Medium (300-600m)</option>
+                  <option value="high">High (60-180m)</option>
+                </select>
+              </div>
+
+              <div class="mb-3">
+                <label for="bagQuantity" class="form-label">Bag Quantity</label>
+                <input
+                  type="number"
+                  class="form-control"
+                  id="bagQuantity"
+                  bind:value={formData.bagQuantity}
+                />
+              </div>
             </div>
 
-            <div class="mb-3">
-              <label for="bloodType" class="form-label">Blood Type</label>
-              <select
-                class="form-select"
-                id="bloodType"
-                bind:value={formData.bloodType}
-              >
-                <option value="A+">A+</option>
-                <option value="A-">A-</option>
-                <option value="B+">B+</option>
-                <option value="B-">B-</option>
-                <option value="AB+">AB+</option>
-                <option value="AB-">AB-</option>
-                <option value="O+">O+</option>
-                <option value="O-">O-</option>
-              </select>
-            </div>
+            <!-- Add the remaining form fields here -->
 
             <div class="mb-3">
-              <label for="purpose" class="form-label">Purpose</label>
-              <select
-                class="form-select"
-                id="purpose"
-                bind:value={formData.purpose}
-              >
-                <option value="routine">Routine</option>
-                <option value="emergency">Emergency</option>
-                <option value="surgery">Surgery</option>
-              </select>
+              <button type="submit" class="btn btn-danger">Submit</button>
             </div>
 
-            <div class="mb-3">
-              <label for="bloodPackType" class="form-label"
-                >Blood Pack Type</label
-              >
-              <select
-                class="form-select"
-                id="bloodPackType"
-                bind:value={formData.bloodPackType}
-              >
-                <option value="whole">Whole</option>
-                <option value="packed">Packed Red Cell</option>
-                <option value="washed">Washed Red Cell</option>
-                <option value="platelet">Platelet Concentrate</option>
-                <option value="plasma">Fresh Frozen Plasma</option>
-              </select>
-            </div>
-
-            <div class="mb-3">
-              <label for="urgency" class="form-label">Urgency</label>
-              <select
-                class="form-select"
-                id="urgency"
-                bind:value={formData.urgency}
-              >
-                <option value="low">Low (1000m)</option>
-                <option value="medium">Medium (300-600m)</option>
-                <option value="high">High (60-180m)</option>
-              </select>
-            </div>
-
-            <div class="mb-3">
-              <label for="bagQuantity" class="form-label">Bag Quantity</label>
-              <input
-                type="number"
-                class="form-control"
-                id="bagQuantity"
-                bind:value={formData.bagQuantity}
-              />
-            </div>
-
-            <button type="submit" class="btn btn-danger">Submit</button>
             <hr />
           </form>
+
           <!-- End Form Section -->
 
           <!-- Table Section -->
@@ -455,6 +474,7 @@
               placeholder="Search..."
             />
           </div>
+          <br>
           <div class="table-responsive">
             <table
               class="table table-bordered"

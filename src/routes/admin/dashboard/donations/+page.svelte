@@ -366,6 +366,12 @@
                 href="/admin/dashboard/donations">Donations</a
               >
             </li>
+            <li class="nav-item">
+              <a
+                class="nav-link nav-hover text-light"
+                href="/admin/dashboard/reports">Reports</a
+              >
+            </li>
           </ul>
           <a
             href="/"
@@ -391,6 +397,7 @@
             <div>
               <input type="text" bind:value={searchTerm} on:input={search} placeholder="Search..." />
             </div>
+            <br>
             <div class="table-responsive">
               <table class="table table-bordered" id="dataTable" width="100%" cellspacing="0">
                 <thead>

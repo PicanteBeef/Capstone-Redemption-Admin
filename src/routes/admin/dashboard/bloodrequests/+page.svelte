@@ -453,6 +453,12 @@
                 href="/admin/dashboard/donations">Donations</a
               >
             </li>
+            <li class="nav-item">
+              <a
+                class="nav-link nav-hover text-light"
+                href="/admin/dashboard/reports">Reports</a
+              >
+            </li>
           </ul>
           <a
             href="/"
@@ -468,7 +474,6 @@
     <!--Main Content-->
     <div class="content-wrapper" style="margin-top: 5rem;">
       <!-- Transaction Section-->
-      <br>
       <div>
         <!--Blood Inventory-->
         <div class="card mb-3 mx-1" id="blood-inventory">
@@ -479,6 +484,7 @@
             <div>
               <input type="text" bind:value={searchTerm} on:input={search} placeholder="Search..." />
             </div>
+            <br>
             <div class="table-responsive">
               
               <table

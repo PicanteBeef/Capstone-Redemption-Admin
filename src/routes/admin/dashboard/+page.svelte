@@ -119,7 +119,7 @@
     //Donut Chart Data Visualization
     const { data: donutRecords, donutError } = await supabase
       .from("blood_stock")
-      .select("*")
+      .select("*");
 
     console.log(donutRecords);
 
@@ -135,15 +135,24 @@
 
   function doughnutChart() {
     console.log("Total Sum:", totalSum);
-    const ctx = document.getElementById("myDoughnutChart").getContext("2d");
+    const ctx = document.getElementById("myChart").getContext("2d");
 
     new Chart(ctx, {
-      type: "doughnut",
+      type: "bar",
       data: {
         labels: bloodTypeArray,
         datasets: [
           {
-            data: [data[0].a_pos, data[0].a_neg, data[0].b_pos, data[0].b_neg, data[0].ab_pos, data[0].ab_pos, data[0].o_pos, data[0].o_pos],
+            data: [
+              data[0].a_pos,
+              data[0].a_neg,
+              data[0].b_pos,
+              data[0].b_neg,
+              data[0].ab_pos,
+              data[0].ab_pos,
+              data[0].o_pos,
+              data[0].o_pos,
+            ],
             backgroundColor: [
               "#cbd6e4",
               "#bfcbdb",
@@ -155,19 +164,68 @@
               "#991f17",
             ],
             borderWidth: 1,
-          }],
+          },
+        ],
       },
       options: {
         plugins: {
           legend: {
+            position: "left",
             labels: {
               color: "white",
-            }
-          }
+              generateLabels: function (chart) {
+                const data = chart.data;
+                if (data.labels.length && data.datasets.length) {
+                  return data.labels.map(function (label, i) {
+                    const meta = chart.getDatasetMeta(0);
+                    const ds = data.datasets[0];
+                    const arc = meta.data[i];
+                    const value = ds.data[i];
+
+                    return {
+                      text: `${label} (${value})`,
+                      fillStyle: ds.backgroundColor[i],
+                      strokeStyle: "white",
+                      lineWidth: 2,
+                      hidden: isNaN(ds.data[i]) || meta.data[i].hidden,
+                      index: i,
+                    };
+                  });
+                }
+                return [];
+              },
+            },
+          },
         },
         maintainAspectRatio: false, // Set to false to allow manual control of the aspect ratio
         responsive: true,
-        cutout: '50%',
+        cutout: "50%",
+        layout: {
+          padding: {
+            left: 50, // Adjust the left padding to accommodate the vertical legend
+          },
+        },
+        scales: {
+          y: {
+            display: false,
+          },
+        },
+        elements: {
+          arc: {
+            borderWidth: 0,
+          },
+        },
+        tooltips: {
+          callbacks: {
+            label: function (tooltipItem, data) {
+              const label = data.labels[tooltipItem.index];
+              const value =
+                data.datasets[tooltipItem.datasetIndex].data[tooltipItem.index];
+              return `${label}: ${value}`;
+            },
+          },
+          bodyColor: "white", // Set the text color of the tooltips to white
+        },
       },
     });
   }
@@ -196,13 +254,13 @@
       crossorigin="anonymous"
     ></script>
 
-    <!-- Latest compiled JavaScript -->
+ 
     <!-- Latest compiled JavaScript -->
     <script
       src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"
     ></script>
 
-    <!--Latest complied Popperjs-->
+
     <!--Latest complied Popperjs-->
     <script
       src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.8/dist/umd/popper.min.js"
@@ -219,7 +277,7 @@
       referrerpolicy="no-referrer"
     />
 
-    <!--Charts.js Library-->
+
     <!--Charts.js Library-->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
@@ -252,7 +310,9 @@
         background-position: 0 100%; /*OR bottom left*/
         background-size: 0% 2px;
         background-repeat: no-repeat;
-        transition: background-size 0.3s, background-position 0s 0.3s; /*change after the size immediately*/
+        transition:
+          background-size 0.3s,
+          background-position 0s 0.3s; /*change after the size immediately*/
       }
 
       .nav-hover:hover {
@@ -347,6 +407,12 @@
                   href="/admin/dashboard/donations">Donations</a
                 >
               </li>
+              <li class="nav-item">
+                <a
+                  class="nav-link nav-hover text-light"
+                  href="/admin/dashboard/reports">Reports</a
+                >
+              </li>
             </ul>
             <a
               href="/"
@@ -357,6 +423,7 @@
         </div>
       </nav>
     </header>
+
     <main>
       <!--Main Content-->
       <div class="content-wrapper" style="margin-top: 5rem;">
@@ -364,12 +431,21 @@
         <div class="container text-center">
           <div class="row">
             <div class="row justify-content-center mt-4 mb-4">
-              <div class="col-12 col-md-8 text-center">
-                <canvas id="myDoughnutChart" style="width:300px; height:300px;max-width:100%;"></canvas>
+              <div
+                class="card-header text-white bg-danger"
+                style="background-color: white; border-radius: 10px;"
+              >
+                <i class="fa fa-droplet" /> Blood Inventory
+              </div>
+              <div
+                class="card-header text-white bg-white"
+                style="background-color: white; padding: 20px; border-radius: 10px;"
+              >
+                <canvas id="myChart" style="width:100%; height:300px;"></canvas>
               </div>
             </div>
+          </div>
         </div>
-      </div>
         <!-- Transaction Section-->
         <div>
           <div class="row mx-1">
@@ -486,88 +562,7 @@
               </div>
             </div>
           </div>
-
-          <!--Blood Inventory-->
-          
-
-          <!-- Donor Table
-      <div class="card mb-3 mx-1">
-        <div class="card-header text-danger">
-          <i class="fa fa-table"></i> Donor Info</div>
-        <div class="card-body">
-          <div class="mb-2 w-100">
-            <span><i class="fa-solid fa-magnifying-glass"></i></span>
-            <input type="text" id="myInput" onkeyup="searchDonor()" placeholder="Search Donors">
-          </div>
-          <div class="table-responsive">
-            <table class="table table-bordered" id="donorTable" width="100%" cellspacing="0">
-              <thead>
-                <tr class="clearfix">
-                  <th>Name<a href="#home"><i class="fa-solid fa-sort float-end text-dark"></i></a></th>
-                  <th>Blood Type<a href="#home"><i class="fa-solid fa-sort float-end text-dark"></i></a></th>
-                  <th>Birthdate<a href="#home"><i class="fa-solid fa-sort float-end text-dark"></i></a></th>
-                  <th>Gender<a href="#home"><i class="fa-solid fa-sort float-end text-dark"></i></a></th>
-                  <th>Weight<a href="#home"><i class="fa-solid fa-sort float-end text-dark"></i></a></th>
-                  <th>BP<a href="#home"><i class="fa-solid fa-sort float-end text-dark"></i></a></th>
-                </tr>
-              </thead>
-              <tfoot>
-                <tr>
-                  <th>Name</th>
-                  <th>Blood Type</th>
-                  <th>Birthdate</th>
-                  <th>Gender</th>
-                  <th>Weight</th>
-                  <th>BP</th>
-                </tr>
-              </tfoot>
-              <tbody>
-                <tr>
-                  <td>Liemel Lacanilao</td>
-                  <td>B+</td>
-                  <td>01/01/1999</td>
-                  <td>Male</td>
-                  <td>55kg</td>
-                  <td>110/75mmHg</td>
-                </tr>
-                <tr>
-                  <td>Lance del Mundo</td>
-                  <td>B+</td>
-                  <td>01/01/1999</td>
-                  <td>Male</td>
-                  <td>55kg</td>
-                  <td>110/75mmHg</td>
-                </tr>
-                <tr>
-                  <td>Kim Querobines</td>
-                  <td>B+</td>
-                  <td>01/01/1999</td>
-                  <td>Male</td>
-                  <td>55kg</td>
-                  <td>110/75mmHg</td>
-                </tr>
-                <tr>
-                  <td>Marc Justyn Villanueva</td>
-                  <td>B+</td>
-                  <td>01/01/1999</td>
-                  <td>Male</td>
-                  <td>55kg</td>
-                  <td>110/75mmHg</td>
-                </tr>
-                <tr>
-                  <td>Mark Daniel de Veyra</td>
-                  <td>B+</td>
-                  <td>01/01/1999</td>
-                  <td>Male</td>
-                  <td>55kg</td>
-                  <td>110/75mmHg</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-        <div class="card-footer small text-danger">Last update: mm/dd/yyyy hh:mm</div>
-      </div> -->
+  
         </div>
         <!-- /.container-fluid-->
         <!-- /.content-wrapper-->
@@ -582,22 +577,6 @@
         <a class="scroll-to-top rounded" href="#page-top">
           <i class="fa fa-angle-up" />
         </a>
-        <!-- Logout Modal-->
-        <!-- <div class="modal fade" id="logout-modal" tabindex="-1" role="dialog" aria-labelledby="logout-modal-Label" aria-hidden="true">
-      <div class="modal-dialog" role="document">
-        <div class="modal-content">
-          <div class="modal-header bg-danger">
-            <p class="modal-title fs-4 fw-bold text-light" id="logout-modal-Label">Ready to Leave?</p>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-          </div>
-          <div class="modal-body">Select "Logout" below to sign out of the system and end the session.</div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" aria-label="Close">Close</button>
-            <a class="btn btn-danger" href="Home.html">Logout</a>
-          </div>
-        </div>
-      </div>
-    </div> -->
       </div>
     </main>
   </body>
@@ -625,55 +604,5 @@
         }
       }
     }
-
-    //   //Database Sync
-    //   async function getBloodInventory() {
-    //     const data = await fetch("https://encouraging-erin-crayfish.cyclic.app/api/blood-inventory");
-    //     const results = await data.json();
-
-    //     return results;
-    //   }
-
-    //   const head = `<table class="table">
-    //   <thead>
-    //     <tr>
-    //       <th scope="col">ID</th>
-    //       <th scope="col">Blood Type</th>
-    //       <th scope="col">Amount</th>
-    //       <th scope="col">Expiry</th>
-    //       <th scope="col">Entry Date</th>
-    //       <th scope="col">Action</th>
-    //     </tr>
-    //   </thead>
-    //   <tbody>
-    //   `
-
-    //   const footer = `
-    // </tbody>
-    // </table>
-    //   `
-
-    //   document.addEventListener('DOMContentLoaded', async ()=>{
-    //     const items = await getBloodInventory();
-
-    //     const myContainer = document.getElementById('items-container')
-
-    //     myContainer.innerHTML = `
-    //       ${head}
-    //       ${items.map(item => (`
-    //     <tr>
-    //       <th scope="row">${item.id}</th>
-    //       <td>${item.bloodType}</td>
-    //       <td>${item.amount}</td>
-    //       <td>${item.expiry}</td>
-    //       <td>${item.entryDate}</td>
-    //       <td><button class="border border-0 bg-transparent"><a href=""><i class="fa-solid fa-trash fs-5 text-danger"></i></a></button></td>
-    //     </tr>
-    //     `
-    //     ))
-    //   })}
-    //   ${footer}
-    //     `
-    //    })
   </script>
 </html>

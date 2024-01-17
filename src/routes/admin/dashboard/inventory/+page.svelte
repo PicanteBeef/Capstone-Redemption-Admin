@@ -103,11 +103,10 @@
         'Error inserting data into "blood_inventory":',
         insertErrorInventory.message
       );
-      console.log("tite");
       return;
     }
-
-    console.log("tangina");
+    location.reload();
+    console.log("Added an entry to the inventory.");
   }
 
   // Delete Entry From Blood Inventory
@@ -361,6 +360,12 @@
                 href="/admin/dashboard/donations">Donations</a
               >
             </li>
+            <li class="nav-item">
+              <a
+                class="nav-link nav-hover text-light"
+                href="/admin/dashboard/reports">Reports</a
+              >
+            </li>
           </ul>
           <a
             href="/"
@@ -378,7 +383,6 @@
       <!-- Transaction Section-->
       <div>
         <!--Add Entry-->
-        <br>
         <div class="card mb-3 mx-1 bg-danger w-50" id="addTo-inventory">
           <div class="card-header text-light bg-danger">
             <i class="fa fa-droplet" /> Blood Inventory
@@ -455,6 +459,7 @@
                 placeholder="Search..."
               />
             </div>
+            <br>
             <div class="table-responsive">
               <table
                 class="table table-bordered rounded"
