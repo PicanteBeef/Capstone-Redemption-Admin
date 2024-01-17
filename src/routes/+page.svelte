@@ -7,29 +7,6 @@
   let errorMessage = "";
 
   const login = async () => {
-    // try {
-    // const { data: createData, error: createError } = await supabase.auth.signUp({
-    //   email: email,
-    //   password: password
-    // })
-
-    // if (createError) {
-    //   console.log(createError)
-    // }
-
-    //   const { user, error } = await supabase.auth.signInWithPassword({
-    //     email: email,
-    //     password: password,
-    //   });
-
-    //   if (error) {
-    //     errorMessage = 'Invalid credentials. Please try again.';
-    //     return;
-    //   }
-
-    //   console.log('Logged in:', user);
-    
-
     try {
       const { data: users, error } = await supabase
       .from("users")

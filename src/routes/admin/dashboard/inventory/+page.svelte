@@ -12,8 +12,10 @@
   };
 
   let data = [];
+  let originalData = [];
+  let searchTerm = "";
 
-  let sortBy = '';
+  let sortBy = "";
   let sortOrder = 1;
 
   async function sortByColumn(column) {
@@ -28,53 +30,84 @@
     data = data.sort((a, b) => (a[column] - b[column]) * sortOrder);
   }
 
-  // Insert Entry to Blood Inventory
   async function handleSubmit(event) {
     console.log(formData);
     event.preventDefault();
-    // Calculate the expiry date by adding 42 days to the current date
-    const entryDate = new Date(formData.entryDate);
-    const expiryDate = new Date(formData.entryDate);
-    expiryDate.setDate(expiryDate.getDate() + 42);
 
-    const { data: record, error } = await supabase
-      .from("blood_inventory")
-      .insert({
-        blood_type: formData.bloodType,
-        amount: formData.amount,
-        entry_date: entryDate,
-        expiry: expiryDate,
-      })
-      .select();
+    const bloodType = formData.bloodType;
+    const amount = parseInt(formData.amount, 10);
+    const entry_date = new Date(formData.entryDate);
+    const entryExpiry = new Date(entry_date);
+    entryExpiry.setDate(entryExpiry.getDate() + 42);
+
+    const { data, error } = await supabase
+      .from("blood_stock")
+      .select(bloodType.toLowerCase());
 
     if (error) {
-      console.error("Error inserting data:", error);
+      console.error("Error fetching data from Supabase:", error.message);
       return;
     }
 
-    const { data: record1, error1 } = await supabase
-      .from("blood_transactions")
-      .insert({
-        id: record[0].id,
-        blood_type: formData.bloodType,
-        amount: formData.amount,
-        transaction_date: record[0].entry_date,
-        transaction_type: "Blood In",
-      })
-      .select();
+    const currentCount = data[0]?.[bloodType.toLowerCase()] || 0;
+    const newTotal = currentCount + amount;
+    console.log("dataZ", data);
 
-    if (error1) {
-      console.error("Error inserting data:", error1);
+    console.log("Blood Type:", bloodType);
+    console.log("Current Count:", currentCount);
+    console.log("New Total:", newTotal);
+
+    const { updateError } = await supabase
+      .from("blood_stock")
+      .update({ [bloodType.toLowerCase()]: newTotal })
+      .eq("id", 1);
+
+    if (updateError) {
+      console.error("Error updating data in Supabase:", updateError.message);
+      console.log(
+        "tite ni liemel joshua dumangon lacanilao ng san jose del monte bulacan"
+      );
       return;
     }
+    console.log("Blood Stock Updated Successfully.");
 
-    formData = {
-      bloodType: "",
-      amount: 0,
-      entryDate: "",
+    const bloodValuePair = {
+      a_pos: "A+",
+      a_neg: "A-",
+      b_pos: "B+",
+      b_neg: "B-",
+      ab_pos: "AB+",
+      ab_neg: "AB-",
+      o_pos: "O+",
+      o_neg: "O-",
     };
+    console.log("Blood Type:", bloodValuePair[bloodType]);
+    console.log("Amount:", amount);
+    console.log("Date:", entry_date);
+    console.log("Expiry:", entryExpiry);
 
-    data = [record[0], ...data];
+    const { insertErrorInventory } = await supabase
+      .from("blood_transactions")
+      .insert([
+        {
+          entry_bloodtype: bloodValuePair[bloodType],
+          amount: amount,
+          transaction_date: entry_date,
+          blood_expiry: entryExpiry,
+          transaction_type: "Blood In",
+        },
+      ]);
+
+    if (insertErrorInventory) {
+      console.error(
+        'Error inserting data into "blood_inventory":',
+        insertErrorInventory.message
+      );
+      console.log("tite");
+      return;
+    }
+
+    console.log("tangina");
   }
 
   // Delete Entry From Blood Inventory
@@ -95,17 +128,18 @@
     data = [record[0], ...data];
   }
 
-    //Fetch Blood Inventory Data
+  //Fetch Blood Inventory Data
   onMount(async () => {
     const { data: records, error } = await supabase
-      .from("blood_inventory")
+      .from("blood_transactions")
       .select("*")
-      .order("entry_date", { ascending: false });
+      .neq("transaction_type", "Blood Out");
 
     if (error) {
       console.error("Error fetching data from Supabase:", error);
     } else {
       data = records;
+      originalData = records;
     }
   });
 
@@ -135,29 +169,29 @@
   };
 
   const search = () => {
-    if (searchTerm.trim() === '') {
+    if (searchTerm.trim() === "") {
       data = originalData;
       return;
     }
 
-    const searchTermLower = searchTerm.toLocaleLowerCase();
+    const searchTermLower = searchTerm.toLowerCase();
 
-    const filteredData = originalData.filter((item) => 
+    const filteredData = originalData.filter((item) =>
       Object.values(item).some((value) => {
-        if(typeof value === "string") {
-          return value.toLocaleLowerCase().includes(searchTermLower);
+        if (typeof value === "string") {
+          return value.toLowerCase().includes(searchTermLower);
         } else if (value instanceof Date) {
-          const formattedData = moment(value).format("L • hh:mma");
-          return formattedData.toLocaleLowerCase().includes(searchTermLower);
+          // Format the date to match the search term format
+          const formattedDate = moment(value).format("L • hh:mma");
+          return formattedDate.toLowerCase().includes(searchTermLower);
         }
         return false;
       })
     );
-      
+
     data = filteredData;
   };
-  $: search(); 
-  
+  $: search();
 </script>
 
 <head>
@@ -183,12 +217,10 @@
   ></script>
 
   <!-- Latest compiled JavaScript -->
-  <!-- Latest compiled JavaScript -->
   <script
     src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"
   ></script>
 
-  <!--Latest complied Popperjs-->
   <!--Latest complied Popperjs-->
   <script
     src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.8/dist/umd/popper.min.js"
@@ -234,7 +266,9 @@
       background-position: 0 100%; /*OR bottom left*/
       background-size: 0% 2px;
       background-repeat: no-repeat;
-      transition: background-size 0.3s, background-position 0s 0.3s; /*change after the size immediately*/
+      transition:
+        background-size 0.3s,
+        background-position 0s 0.3s; /*change after the size immediately*/
     }
 
     .nav-hover:hover {
@@ -268,12 +302,6 @@
       .login-btn {
         margin-left: 0;
       }
-    }
-
-    .sortButton:hover {
-      cursor: pointer;
-      background-color: #d9534f;
-      color: #f7f7f7;
     }
   </style>
 </head>
@@ -322,10 +350,16 @@
               >
             </li>
             <li class="nav-item">
-              <a class="nav-link nav-hover text-light" href="/admin/dashboard/bloodreqforms">Request Forms</a>
+              <a
+                class="nav-link nav-hover text-light"
+                href="/admin/dashboard/bloodreqforms">Request Forms</a
+              >
             </li>
             <li class="nav-item">
-              <a class="nav-link nav-hover text-light" href="/admin/dashboard/donations">Donations</a>
+              <a
+                class="nav-link nav-hover text-light"
+                href="/admin/dashboard/donations">Donations</a
+              >
             </li>
           </ul>
           <a
@@ -344,7 +378,8 @@
       <!-- Transaction Section-->
       <div>
         <!--Add Entry-->
-        <div class="card mb-3 mx-1 bg-danger w-50 " id="addTo-inventory">
+        <br>
+        <div class="card mb-3 mx-1 bg-danger w-50" id="addTo-inventory">
           <div class="card-header text-light bg-danger">
             <i class="fa fa-droplet" /> Blood Inventory
           </div>
@@ -353,18 +388,48 @@
               <form clas on:submit={handleSubmit}>
                 <div class="row">
                   <div class="col">
-                    <label for="bloodType" class="form-label">Blood Type:</label>
-                    <input type="text" class="form-control" id="bloodType" bind:value={formData.bloodType} required>
-                  </div>
-            
-                  <div class="col">
-                    <label for="bloodAmount" class="form-label">Amount:</label>
-                    <input type="text" class="form-control" id="bloodAmount" pattern="[0-9]*" min="1" bind:value={formData.amount} required>
+                    <label for="bloodType" class="form-label">Blood Type:</label
+                    >
+                    <select
+                      class="form-control"
+                      id="bloodType"
+                      bind:value={formData.bloodType}
+                      required
+                    >
+                      <option value="a_pos">A+</option>
+                      <option value="a_neg">A-</option>
+                      <option value="b_pos">B+</option>
+                      <option value="b_neg">B-</option>
+                      <option value="ab_pos">AB+</option>
+                      <option value="ab_neg">AB-</option>
+                      <option value="o_pos">O+</option>
+                      <option value="o_neg">O-</option>
+                    </select>
                   </div>
 
                   <div class="col">
-                    <label for="entryDate" class="form-label">Entry Date:</label>
-                    <input type="datetime-local" class="form-control" id="entryDate" bind:value={formData.entryDate} required>
+                    <label for="bloodAmount" class="form-label">Amount:</label>
+                    <input
+                      type="text"
+                      class="form-control"
+                      id="bloodAmount"
+                      pattern="[0-9]*"
+                      min="1"
+                      bind:value={formData.amount}
+                      required
+                    />
+                  </div>
+
+                  <div class="col">
+                    <label for="entryDate" class="form-label">Entry Date:</label
+                    >
+                    <input
+                      type="datetime-local"
+                      class="form-control"
+                      id="entryDate"
+                      bind:value={formData.entryDate}
+                      required
+                    />
                   </div>
 
                   <div class="mt-2">
@@ -382,6 +447,14 @@
             <i class="fa fa-droplet" /> Blood Inventory
           </div>
           <div class="card-body">
+            <div>
+              <input
+                type="text"
+                bind:value={searchTerm}
+                on:input={search}
+                placeholder="Search..."
+              />
+            </div>
             <div class="table-responsive">
               <table
                 class="table table-bordered rounded"
@@ -391,11 +464,41 @@
               >
                 <thead>
                   <tr class="clearfix">
-                    <th on:click={() => sortByColumn('id')} class="sortButton">Serial ID</th>
-                    <th on:click={() => sortByColumn('blood type')} class="sortButton">Blood Type</th>
-                    <th on:click={() => sortByColumn('amount')} class="sortButton">Amount</th>
-                    <th on:click={() => sortByColumn('expiry')} class="sortButton">Expiration</th>
-                    <th on:click={() => sortByColumn('entry_date')} class="sortButton">Date Entry</th>
+                    <th on:click={() => sortTable("id")}
+                      >Serial ID{sortColumn === "id"
+                        ? sortDirection === 1
+                          ? " ▲"
+                          : " ▼"
+                        : ""}</th
+                    >
+                    <th on:click={() => sortTable("entry_bloodtype")}
+                      >Blood Type{sortColumn === "entry_bloodtype"
+                        ? sortDirection === 1
+                          ? " ▲"
+                          : " ▼"
+                        : ""}</th
+                    >
+                    <th on:click={() => sortTable("amount")}
+                      >Amount{sortColumn === "amount"
+                        ? sortDirection === 1
+                          ? " ▲"
+                          : " ▼"
+                        : ""}</th
+                    >
+                    <th on:click={() => sortTable("blood_expiry")}
+                      >Expiration{sortColumn === "blood_expiry"
+                        ? sortDirection === 1
+                          ? " ▲"
+                          : " ▼"
+                        : ""}</th
+                    >
+                    <th on:click={() => sortTable("transaction_date")}
+                      >Date Entry{sortColumn === "transaction_date"
+                        ? sortDirection === 1
+                          ? " ▲"
+                          : " ▼"
+                        : ""}</th
+                    >
                   </tr>
                 </thead>
                 <tfoot>
@@ -411,10 +514,14 @@
                   {#each data as item (item.id)}
                     <tr>
                       <td>{item.id}</td>
-                      <td>{item.blood_type}</td>
+                      <td>{item.entry_bloodtype}</td>
                       <td>{item.amount} • {item.amount * 450} CC</td>
-                      <td>{moment(item.expiry).format("L • hh:mma")}</td>
-                      <td>{moment(item.entry_date).format("L • hh:mma")}</td>
+                      <td>{moment(item.blood_expiry).format("L • hh:mma")}</td>
+                      <td
+                        >{moment(item.transaction_date)
+                          .utc()
+                          .format("L • hh:mma")}</td
+                      >
                     </tr>
                   {/each}
                 </tbody>

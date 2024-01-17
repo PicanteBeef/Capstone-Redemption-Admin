@@ -16,6 +16,8 @@
   };
 
   let data = [];
+  let originalData = [];
+  let searchTerm = "";
 
   // Insert Entry to Blood Inventory
   async function handleSubmit(event) {
@@ -83,33 +85,9 @@
       console.error("Error fetching data from Supabase:", error);
     } else {
       data = records;
+      originalData = records;
     }
   });
-
-  const search = () => {
-    if (searchTerm.trim() === '') {
-      data = originalData;
-      return;
-    }
-
-    const searchTermLower = searchTerm.toLocaleLowerCase();
-
-    const filteredData = originalData.filter((item) => 
-      Object.values(item).some((value) => {
-        if(typeof value === "string") {
-          return value.toLocaleLowerCase().includes(searchTermLower);
-        } else if (value instanceof Date) {
-          const formattedData = moment(value).format("L • hh:mma");
-          return formattedData.toLocaleLowerCase().includes(searchTermLower);
-        }
-        return false;
-      })
-    );
-      
-    data = filteredData;
-  };
-  $: search(); 
-  
 
   let sortColumn = "";
   let sortDirection = 1; // 1 for ascending, -1 for descending
@@ -135,6 +113,32 @@
       }
     });
   };
+
+  const search = () => {
+    if (searchTerm.trim() === "") {
+      data = originalData;
+      return;
+    }
+
+    const searchTermLower = searchTerm.toLowerCase();
+
+    const filteredData = originalData.filter((item) =>
+      Object.values(item).some((value) => {
+        if (typeof value === "string") {
+          return value.toLowerCase().includes(searchTermLower);
+        } else if (value instanceof Date) {
+          // Format the date to match the search term format
+          const formattedDate = moment(value).format("L • hh:mma");
+          return formattedDate.toLowerCase().includes(searchTermLower);
+        }
+        return false;
+      })
+    );
+
+    data = filteredData;
+  };
+  $: search();
+
 </script>
 
 <head>
@@ -161,10 +165,18 @@
 
   <!-- Latest compiled JavaScript -->
   <!-- Latest compiled JavaScript -->
+  <!-- Latest compiled JavaScript -->
+  <!-- Latest compiled JavaScript -->
+  <!-- Latest compiled JavaScript -->
+  <!-- Latest compiled JavaScript -->
   <script
     src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"
   ></script>
 
+  <!--Latest complied Popperjs-->
+  <!--Latest complied Popperjs-->
+  <!--Latest complied Popperjs-->
+  <!--Latest complied Popperjs-->
   <!--Latest complied Popperjs-->
   <!--Latest complied Popperjs-->
   <script
@@ -211,7 +223,9 @@
       background-position: 0 100%; /*OR bottom left*/
       background-size: 0% 2px;
       background-repeat: no-repeat;
-      transition: background-size 0.3s, background-position 0s 0.3s; /*change after the size immediately*/
+      transition:
+        background-size 0.3s,
+        background-position 0s 0.3s; /*change after the size immediately*/
     }
 
     .nav-hover:hover {
@@ -300,10 +314,16 @@
               >
             </li>
             <li class="nav-item">
-              <a class="nav-link nav-hover text-light" href="/admin/dashboard/bloodreqforms">Request Forms</a>
+              <a
+                class="nav-link nav-hover text-light"
+                href="/admin/dashboard/bloodreqforms">Request Forms</a
+              >
             </li>
             <li class="nav-item">
-              <a class="nav-link nav-hover text-light" href="/admin/dashboard/donations">Donations</a>
+              <a
+                class="nav-link nav-hover text-light"
+                href="/admin/dashboard/donations">Donations</a
+              >
             </li>
           </ul>
           <a
@@ -313,7 +333,6 @@
           >
         </div>
       </div>
-      
     </nav>
   </header>
 
@@ -322,6 +341,7 @@
     <div class="content-wrapper" style="margin-top: 5rem;">
       <!-- Transaction Section -->
       <!-- Blood Inventory -->
+      <br>
       <div class="card mb-3 mx-1" id="blood-inventory">
         <div class="card-header text-danger">
           <i class="fa fa-droplet" /> Blood Request
@@ -331,17 +351,32 @@
           <form on:submit={handleSubmit}>
             <div class="mb-3">
               <label for="patientName" class="form-label">Patient Name</label>
-              <input type="text" class="form-control" id="patientName" bind:value={formData.patientName} required />
+              <input
+                type="text"
+                class="form-control"
+                id="patientName"
+                bind:value={formData.patientName}
+                required
+              />
             </div>
 
             <div class="mb-3">
               <label for="diagnosis" class="form-label">Diagnosis</label>
-              <input type="text" class="form-control" id="diagnosis" bind:value={formData.diagnosis} />
+              <input
+                type="text"
+                class="form-control"
+                id="diagnosis"
+                bind:value={formData.diagnosis}
+              />
             </div>
 
             <div class="mb-3">
               <label for="bloodType" class="form-label">Blood Type</label>
-              <select class="form-select" id="bloodType" bind:value={formData.bloodType}>
+              <select
+                class="form-select"
+                id="bloodType"
+                bind:value={formData.bloodType}
+              >
                 <option value="A+">A+</option>
                 <option value="A-">A-</option>
                 <option value="B+">B+</option>
@@ -355,7 +390,11 @@
 
             <div class="mb-3">
               <label for="purpose" class="form-label">Purpose</label>
-              <select class="form-select" id="purpose" bind:value={formData.purpose}>
+              <select
+                class="form-select"
+                id="purpose"
+                bind:value={formData.purpose}
+              >
                 <option value="routine">Routine</option>
                 <option value="emergency">Emergency</option>
                 <option value="surgery">Surgery</option>
@@ -363,8 +402,14 @@
             </div>
 
             <div class="mb-3">
-              <label for="bloodPackType" class="form-label">Blood Pack Type</label>
-              <select class="form-select" id="bloodPackType" bind:value={formData.bloodPackType}>
+              <label for="bloodPackType" class="form-label"
+                >Blood Pack Type</label
+              >
+              <select
+                class="form-select"
+                id="bloodPackType"
+                bind:value={formData.bloodPackType}
+              >
                 <option value="whole">Whole</option>
                 <option value="packed">Packed Red Cell</option>
                 <option value="washed">Washed Red Cell</option>
@@ -375,7 +420,11 @@
 
             <div class="mb-3">
               <label for="urgency" class="form-label">Urgency</label>
-              <select class="form-select" id="urgency" bind:value={formData.urgency}>
+              <select
+                class="form-select"
+                id="urgency"
+                bind:value={formData.urgency}
+              >
                 <option value="low">Low (1000m)</option>
                 <option value="medium">Medium (300-600m)</option>
                 <option value="high">High (60-180m)</option>
@@ -384,27 +433,100 @@
 
             <div class="mb-3">
               <label for="bagQuantity" class="form-label">Bag Quantity</label>
-              <input type="number" class="form-control" id="bagQuantity" bind:value={formData.bagQuantity} />
+              <input
+                type="number"
+                class="form-control"
+                id="bagQuantity"
+                bind:value={formData.bagQuantity}
+              />
             </div>
 
-            <button type="submit" class="btn btn-primary">Submit</button>
+            <button type="submit" class="btn btn-danger">Submit</button>
+            <hr />
           </form>
           <!-- End Form Section -->
 
           <!-- Table Section -->
+          <div>
+            <input
+              type="text"
+              bind:value={searchTerm}
+              on:input={search}
+              placeholder="Search..."
+            />
+          </div>
           <div class="table-responsive">
-            <table class="table table-bordered" id="dataTable" width="100%" cellspacing="0">
+            <table
+              class="table table-bordered"
+              id="dataTable"
+              width="100%"
+              cellspacing="0"
+            >
               <thead>
                 <tr>
-                  <th>Serial ID</th>
-                  <th>Patient Name</th>
-                  <th>Patient Diagnosis</th>
-                  <th>Patient Blood Type</th>
-                  <th>Request Purpose</th>
-                  <th>Blood Pack Type</th>
-                  <th>Urgency</th>
-                  <th>Requested Quantity</th>
-                  <th>Date Requested</th>
+                  <th on:click={() => sortTable("id")}
+                    >Serial ID{sortColumn === "id"
+                      ? sortDirection === 1
+                        ? " ▲"
+                        : " ▼"
+                      : ""}</th
+                  >
+                  <th on:click={() => sortTable("patient_name")}
+                    >Patient Name{sortColumn === "patient_name"
+                      ? sortDirection === 1
+                        ? " ▲"
+                        : " ▼"
+                      : ""}</th
+                  >
+                  <th on:click={() => sortTable("patient_diagnosis")}
+                    >Patient Diagnosis{sortColumn === "patient_diagnosis"
+                      ? sortDirection === 1
+                        ? " ▲"
+                        : " ▼"
+                      : ""}</th
+                  >
+                  <th on:click={() => sortTable("patient_bloodtype")}
+                    >Patient Blood Type{sortColumn === "patient_bloodtype"
+                      ? sortDirection === 1
+                        ? " ▲"
+                        : " ▼"
+                      : ""}</th
+                  >
+                  <th on:click={() => sortTable("request_purpose")}
+                    >Request Purpose{sortColumn === "request_purpose"
+                      ? sortDirection === 1
+                        ? " ▲"
+                        : " ▼"
+                      : ""}</th
+                  >
+                  <th on:click={() => sortTable("request_bloodpack")}
+                    >Blood Pack Type{sortColumn === "request_bloodpack"
+                      ? sortDirection === 1
+                        ? " ▲"
+                        : " ▼"
+                      : ""}</th
+                  >
+                  <th on:click={() => sortTable("request_urgency")}
+                    >Urgency{sortColumn === "request_urgency"
+                      ? sortDirection === 1
+                        ? " ▲"
+                        : " ▼"
+                      : ""}</th
+                  >
+                  <th on:click={() => sortTable("request_quantity")}
+                    >Requested Quantity{sortColumn === "request_quantity"
+                      ? sortDirection === 1
+                        ? " ▲"
+                        : " ▼"
+                      : ""}</th
+                  >
+                  <th on:click={() => sortTable("request_date")}
+                    >Date Requested{sortColumn === "request_date"
+                      ? sortDirection === 1
+                        ? " ▲"
+                        : " ▼"
+                      : ""}</th
+                  >
                   <th>Action</th>
                 </tr>
               </thead>
@@ -435,7 +557,10 @@
                     <td>{item.request_quantity}</td>
                     <td>{moment(item.request_date).format("L • hh:mma")}</td>
                     <td>
-                      <button on:click={() => deleteOne(item.id)} class="btn btn-danger btn-sm">Delete</button>
+                      <button
+                        on:click={() => deleteOne(item.id)}
+                        class="btn btn-danger btn-sm">Delete</button
+                      >
                     </td>
                   </tr>
                 {/each}

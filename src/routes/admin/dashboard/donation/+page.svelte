@@ -1,34 +1,9 @@
-<!-- Blood transactions lands here. -->
+<!-- Inventory Database display here. Include CRUD commands. -->
 
 <script>
     import { onMount } from "svelte";
     import supabase from "/src/lib/supabaseClient.js";
-    import moment from "moment";
-
-    let sortColumn = "";
-    let sortDirection = 1; // 1 for ascending, -1 for descending
-
-    const sortTable = (column) => {
-    if (column === sortColumn) {
-      // Reverse the sort direction if the same column is clicked
-      sortDirection = -sortDirection;
-    } else {
-      // Set the new sort column and reset the direction
-      sortColumn = column;
-      sortDirection = 1;
-    }
-
-    data = data.slice().sort((a, b) => {
-      const valueA = a[column];
-      const valueB = b[column];
-
-      if (typeof valueA === "string" && typeof valueB === "string") {
-        return sortDirection * valueA.localeCompare(valueB);
-      } else {
-        return sortDirection * (valueA - valueB);
-      }
-    });
-  };
+    import moment, { now } from "moment";
   
     let formData = {
       bloodType: "",
@@ -37,9 +12,21 @@
     };
   
     let data = [];
-    let originalData = [];
-    let searchTerm = '';
-    let data1 = [];
+  
+    let sortBy = '';
+    let sortOrder = 1;
+  
+    async function sortByColumn(column) {
+      if (sortBy === column) {
+        sortOrder *= -1; // Reverse the sorting order if the same column is clicked
+      } else {
+        sortBy = column;
+        sortOrder = 1;
+      }
+  
+      // Perform the sorting
+      data = data.sort((a, b) => (a[column] - b[column]) * sortOrder);
+    }
   
     // Insert Entry to Blood Inventory
     async function handleSubmit(event) {
@@ -68,7 +55,7 @@
       formData = {
         bloodType: "",
         amount: 0,
-        entryDate: "",
+        entryDate: now(),
       };
   
       data = [record[0], ...data];
@@ -91,51 +78,20 @@
   
       data = [record[0], ...data];
     }
-
-    const bloodValuePair = {
-      "a_pos": "A+",
-      "a_neg": "A-",
-      "b_pos": "B+",
-      "b_neg": "B-",
-      "ab_pos": "AB+",
-      "ab_neg": "AB-",
-      "o_pos": "O+",
-      "o_neg": "O-",
-    }
-    
-      //Fetch Blood Transaction Data
+  
+      //Fetch Blood Inventory Data
     onMount(async () => {
       const { data: records, error } = await supabase
-        .from("blood_transactions")
+        .from("blood_inventory")
         .select("*")
-        .order("transaction_date", { ascending: false });
+        .order("entry_date", { ascending: false });
   
       if (error) {
         console.error("Error fetching data from Supabase:", error);
       } else {
         data = records;
-        originalData = records;
       }
     });
-
-  // Search Visible Table  
-  const search = () => {
-    if (searchTerm.trim() === '') {
-      data = originalData;
-      return;
-    }
-
-    const filteredData = originalData.filter(item => {
-      return (
-        item.entry_bloodtype.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.transaction_date.toLowerCase().includes(searchTerm.toLowerCase())
-        // Add more fields as needed for your search
-      );
-    });
-
-    data = filteredData;
-  };
-  $: search();
   </script>
   
   <head>
@@ -247,6 +203,12 @@
           margin-left: 0;
         }
       }
+  
+      .sortButton:hover {
+        cursor: pointer;
+        background-color: #d9534f;
+        color: #f7f7f7;
+      }
     </style>
   </head>
   
@@ -297,7 +259,20 @@
                 <a class="nav-link nav-hover text-light" href="/admin/dashboard/bloodreqforms">Request Forms</a>
               </li>
               <li class="nav-item">
-                <a class="nav-link nav-hover text-light" href="/admin/dashboard/donations">Donations</a>
+                <a
+                  class="nav-link nav-hover text-light"
+                  href="/admin/dashboard/donation">Donations</a>
+              </li>
+              <li class="nav-item">
+                <a
+                  class="nav-link nav-hover text-light"
+                  href="/admin/dashboard/releasing">Releasing</a>
+              </li>
+              <li class="nav-item">
+                <a
+                  class="nav-link nav-hover text-light"
+                  href="/admin/dashboard/releasing">Releasing</a
+                >
               </li>
             </ul>
             <a
@@ -314,50 +289,80 @@
       <!--Main Content-->
       <div class="content-wrapper" style="margin-top: 5rem;">
         <!-- Transaction Section-->
-        <br>
         <div>
+          <!--Add Entry-->
+          <div class="card mb-3 mx-1 bg-danger w-50 " id="addTo-inventory">
+            <div class="card-header text-light bg-danger">
+              <i class="fa fa-droplet" /> Blood Donation Entries
+            </div>
+            <div class="card-body bg-light rounded">
+              <div class="d-flex justify-content-center rounded">
+                <form clas on:submit={handleSubmit}>
+                  <div class="row">
+                    <div class="col">
+                      <label for="bloodType" class="form-label">Blood Type:</label>
+                      <input type="text" class="form-control" id="bloodType" bind:value={formData.bloodType} required>
+                    </div>
+              
+                    <div class="col">
+                      <label for="bloodAmount" class="form-label">Amount:</label>
+                      <input type="text" class="form-control" id="bloodAmount" pattern="[0-9]*" min="1" bind:value={formData.amount} required>
+                    </div>
+
+                    <!-- Write your comments here
+                    <div class="col">
+                      <label for="entryDate" class="form-label">Entry Date:</label>
+                      <input type="datetime-local" class="form-control" id="entryDate" bind:value={formData.entryDate} required>
+                    </div>
+                    -->
+                    <div class="mt-2">
+                      <button class="btn btn-danger" type="submit">Submit</button>
+                    </div>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+  
           <!--Blood Inventory-->
           <div class="card mb-3 mx-1" id="blood-inventory">
             <div class="card-header text-danger">
-              <i class="fa fa-droplet" /> Blood Transactions
+              <i class="fa fa-droplet" /> Blood Inventory
             </div>
             <div class="card-body">
-              <div>
-                <input type="text" bind:value={searchTerm} on:input={search} placeholder="Search..." />
-              </div>
               <div class="table-responsive">
                 <table
-                  class="table table-bordered"
+                  class="table table-bordered rounded"
                   id="dataTable"
                   width="100%"
                   cellspacing="0"
                 >
                   <thead>
                     <tr class="clearfix">
-                      <th on:click={() => sortTable("id")}>Serial ID{sortColumn === "id"? sortDirection === 1? " ▲": " ▼": ""}</th>
-                      <th on:click={() => sortTable("entry_bloodtype")}>Blood Type{sortColumn === "entry_bloodtype"? sortDirection === 1? " ▲": " ▼": ""}</th>
-                      <th on:click={() => sortTable("amount")}>Amount{sortColumn === "amount"? sortDirection === 1? " ▲": " ▼": ""}</th>
-                      <th on:click={() => sortTable("transaction_date")}>Transaction Date{sortColumn === "transaction_date"? sortDirection === 1? " ▲": " ▼": ""}</th>
-                      <th on:click={() => sortTable("transaction_type")}>Transaction Type{sortColumn === "transaction_type"? sortDirection === 1? " ▲": " ▼": ""}</th>
+                      <th on:click={() => sortByColumn('id')} class="sortButton">Serial ID</th>
+                      <th on:click={() => sortByColumn('blood type')} class="sortButton">Blood Type</th>
+                      <th on:click={() => sortByColumn('amount')} class="sortButton">Amount</th>
+                      <th on:click={() => sortByColumn('expiry')} class="sortButton">Expiration</th>
+                      <th on:click={() => sortByColumn('entry_date')} class="sortButton">Date Entry</th>
                     </tr>
                   </thead>
                   <tfoot>
                     <tr>
-                        <th>Serial ID</th>
-                        <th>Blood Type</th>
-                        <th>Amount</th>
-                        <th>Transaction Date</th>
-                        <th>Transaction Type</th>
+                      <th>Serial ID</th>
+                      <th>Blood Type</th>
+                      <th>Amount</th>
+                      <th>Expiration</th>
+                      <th>Date Entry</th>
                     </tr>
                   </tfoot>
                   <tbody>
                     {#each data as item (item.id)}
                       <tr>
                         <td>{item.id}</td>
-                        <td>{item.entry_bloodtype}</td>
-                        <td>{item.amount}</td>
-                        <td>{moment(item.transaction_date).format("L • hh:mma")}</td>
-                        <td>{item.transaction_type}</td>
+                        <td>{item.blood_type}</td>
+                        <td>{item.amount} • {item.amount * 450} CC</td>
+                        <td>{moment(item.expiry).format("L • hh:mma")}</td>
+                        <td>{moment(item.entry_date).format("L • hh:mma")}</td>
                       </tr>
                     {/each}
                   </tbody>

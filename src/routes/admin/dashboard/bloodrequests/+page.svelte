@@ -6,8 +6,10 @@
   import moment from "moment";
   import { createEventDispatcher } from "svelte";
 
-  let data = [];
-
+    let data = [];
+    let originalData = [];
+    let searchTerm = '';
+    
   //Fetch Blood Requests Data
   onMount(async () => {
     const { data: records, error } = await supabase
@@ -19,6 +21,7 @@
       console.error("Error fetching data from Supabase:", error);
     } else {
       data = records;
+      originalData = records;
     }
   });
 
@@ -29,23 +32,16 @@
       return;
     }
 
-    const searchTermLower = searchTerm.toLocaleLowerCase();
+    const filteredData = originalData.filter(item => {
+      return (
+        item.request_urgency.toLowerCase().includes(searchTerm.toLowerCase())
+        // Add more fields as needed for your search
+      );
+    });
 
-    const filteredData = originalData.filter((item) => 
-      Object.values(item).some((value) => {
-        if(typeof value === "string") {
-          return value.toLocaleLowerCase().includes(searchTermLower);
-        } else if (value instanceof Date) {
-          const formattedData = moment(value).format("L • hh:mma");
-          return formattedData.toLocaleLowerCase().includes(searchTermLower);
-        }
-        return false;
-      })
-    );
-      
     data = filteredData;
   };
-  $: search();  
+  $: search(); 
   
 
   let bloodBags = [];
@@ -78,11 +74,11 @@
 
   //Modal Functions
   let requestDetails;
-  let remarks='';
+  let remarks = "";
   let isOpen = false;
 
   let rowStatus = new Map();
-  const rowStatusUpdate= new Map(rowStatus);
+  const rowStatusUpdate = new Map(rowStatus);
 
   const dispatch = createEventDispatcher();
 
@@ -97,41 +93,118 @@
   };
 
   const handleCheckButtonClick = async () => {
-    // Transfer data to another table
-    const { id } = requestDetails;
-    const { data, error } = await supabase
-    .from("blood_requests_releasing")
+  // Transfer data to another table
+  const { id } = requestDetails;
+  const { data, error } = await supabase
+    .from("blood_transactions")
     .upsert([
       {
+        // Map the data accordingly if needed
         id: id,
-        patient_name: requestDetails.patient_name,
-        patient_diagnosis: requestDetails.patient_diagnosis,
-        patient_bloodtype: requestDetails.patient_bloodtype,
-        request_purpose: requestDetails.request_purpose,
-        request_bloodpack: requestDetails.request_bloodpack,
-        request_urgency: requestDetails.request_urgency,
-        request_quantity: requestDetails.request_quantity,
-        request_date: requestDetails.request_date,
-        request_remarks: remarks,
+        entry_bloodtype: requestDetails.patient_bloodtype,
+        amount: requestDetails.request_quantity,
+        transaction_type: "Blood Out"
       },
     ]);
 
-    if (error) {
-      console.error("Error transferring data:", error);
-      return;
-    }
-    console.log("Accepted!");
-    rowStatusUpdate.set(requestDetails.id, {action: "accept"});
-    rowStatus = rowStatusUpdate;
-  };
+  if (error) {
+    console.error("Error transferring data:", error);
+    return;
+  }
+
+  console.log("Accepted!");
+  rowStatusUpdate.set(requestDetails.id, { action: "accept" });
+  rowStatus = rowStatusUpdate;
+  console.log(requestDetails);
+
+  const bloodValuePair = {
+    "A+": "a_pos",
+    "A-": "a_neg",
+    "B+": "b_pos",
+    "B-": "b_neg",
+    "AB+": "ab_pos",
+    "AB-": "ab_neg",
+    "O+": "o_pos",
+    "O-": "o_neg",
+  }
+  const requestBloodtype = bloodValuePair[requestDetails.patient_bloodtype];
+  console.log(requestBloodtype);
+
+  const { data: dataZ, errorZ } = await supabase
+      .from('blood_stock')
+      .select(requestBloodtype)
+
+      if (errorZ) {
+        console.error('Error fetching data from Supabase:', error.message);
+        return;
+      }
+
+      console.log(dataZ);
+      const currentCount = dataZ[0]?.[requestBloodtype] || 0;
+      const newTotal = parseInt(currentCount) - parseInt(requestDetails.request_quantity);
+
+  const { updateError } = await supabase
+      .from('blood_stock')
+      .update({ [requestBloodtype]: newTotal})
+      .eq('id', 1);
+
+      if (updateError) {
+        console.error('Error updating data in Supabase:', updateError.message);
+        console.log('tite ni liemel joshua dumangon lacanilao ng san jose del monte bulacan');
+        return;
+      }
+      console.log("Blood Stock Updated Successfully.");
+
+  // Assuming the original table is named 'blood_requests'
+  const deleteResponse = await supabase
+    .from("blood_requests")
+    .delete()
+    .eq("id", id);
+
+  // Check for errors in the delete operation
+  if (deleteResponse.error) {
+    console.error("Error deleting data from original table:", deleteResponse.error);
+    // You may want to handle the error appropriately, e.g., retry or show a user-friendly message
+    return;
+  }
+
+  // Data has been successfully transferred to the destination table and deleted from the original table
+  // console.log("Data transferred and deleted successfully!");
+};
 
   const handleXMarkButtonClick = async () => {
     // Additional logic for x-mark button if needed
     const { id } = requestDetails;
     console.log("Denied!");
-    rowStatusUpdate.set(requestDetails.id, {action: "reject"});
+    rowStatusUpdate.set(requestDetails.id, { action: "reject" });
     rowStatus = rowStatusUpdate;
   };
+
+  let sortColumn = "";
+  let sortDirection = 1; // 1 for ascending, -1 for descending
+
+  const sortTable = (column) => {
+    if (column === sortColumn) {
+      // Reverse the sort direction if the same column is clicked
+      sortDirection = -sortDirection;
+    } else {
+      // Set the new sort column and reset the direction
+      sortColumn = column;
+      sortDirection = 1;
+    }
+
+    data = data.slice().sort((a, b) => {
+      const valueA = a[column];
+      const valueB = b[column];
+
+      if (typeof valueA === "string" && typeof valueB === "string") {
+        return sortDirection * valueA.localeCompare(valueB);
+      } else {
+        return sortDirection * (valueA - valueB);
+      }
+    });
+  };
+  
 </script>
 
 <head>
@@ -161,10 +234,16 @@
   <!-- Latest compiled JavaScript -->
   <!-- Latest compiled JavaScript -->
   <!-- Latest compiled JavaScript -->
+  <!-- Latest compiled JavaScript -->
+  <!-- Latest compiled JavaScript -->
+  <!-- Latest compiled JavaScript -->
   <script
     src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"
   ></script>
 
+  <!--Latest complied Popperjs-->
+  <!--Latest complied Popperjs-->
+  <!--Latest complied Popperjs-->
   <!--Latest complied Popperjs-->
   <!--Latest complied Popperjs-->
   <!--Latest complied Popperjs-->
@@ -214,7 +293,9 @@
       background-position: 0 100%; /*OR bottom left*/
       background-size: 0% 2px;
       background-repeat: no-repeat;
-      transition: background-size 0.3s, background-position 0s 0.3s; /*change after the size immediately*/
+      transition:
+        background-size 0.3s,
+        background-position 0s 0.3s; /*change after the size immediately*/
     }
 
     .nav-hover:hover {
@@ -360,12 +441,18 @@
                 href="/admin/dashboard/bloodtransac">Blood Transactions</a
               >
             </li>
-              <li class="nav-item">
-                <a class="nav-link nav-hover text-light" href="/admin/dashboard/bloodreqforms">Request Forms</a>
-              </li>
             <li class="nav-item">
-                <a class="nav-link nav-hover text-light" href="/admin/dashboard/donations">Donations</a>
-              </li>
+              <a
+                class="nav-link nav-hover text-light"
+                href="/admin/dashboard/bloodreqforms">Request Forms</a
+              >
+            </li>
+            <li class="nav-item">
+              <a
+                class="nav-link nav-hover text-light"
+                href="/admin/dashboard/donations">Donations</a
+              >
+            </li>
           </ul>
           <a
             href="/"
@@ -381,6 +468,7 @@
     <!--Main Content-->
     <div class="content-wrapper" style="margin-top: 5rem;">
       <!-- Transaction Section-->
+      <br>
       <div>
         <!--Blood Inventory-->
         <div class="card mb-3 mx-1" id="blood-inventory">
@@ -388,7 +476,11 @@
             <i class="fa fa-droplet" /> Blood Request
           </div>
           <div class="card-body">
+            <div>
+              <input type="text" bind:value={searchTerm} on:input={search} placeholder="Search..." />
+            </div>
             <div class="table-responsive">
+              
               <table
                 class="table table-bordered"
                 id="dataTable"
@@ -396,12 +488,40 @@
                 cellspacing="0"
               >
                 <thead>
-                  <tr class="clearfix">
-                    <th>Serial ID</th>
-                    <th>Patient Blood Type</th>
-                    <th>Urgency</th>
-                    <th>Requested Quantity</th>
-                    <th>Date Requested</th>
+                  <tr class="clearfix" style="">
+                    <th on:click={() => sortTable("id")}>Serial ID{sortColumn === "id"? sortDirection === 1? " ▲": " ▼": ""}</th>
+                    <th on:click={() => sortTable("patient_bloodtype")}>
+                      Patient Blood Type
+                      {sortColumn === "patient_bloodtype"
+                        ? sortDirection === 1
+                          ? " ▲"
+                          : " ▼"
+                        : ""}
+                    </th>
+                    <th on:click={() => sortTable("request_urgency")}>
+                      Urgency
+                      {sortColumn === "request_urgency"
+                        ? sortDirection === 1
+                          ? " ▲"
+                          : " ▼"
+                        : ""}
+                    </th>
+                    <th on:click={() => sortTable("request_quantity")}>
+                      Requested Quantity
+                      {sortColumn === "request_quantity"
+                        ? sortDirection === 1
+                          ? " ▲"
+                          : " ▼"
+                        : ""}
+                    </th>
+                    <th on:click={() => sortTable("request_date")}>
+                      Date Requested
+                      {sortColumn === "request_date"
+                        ? sortDirection === 1
+                          ? " ▲"
+                          : " ▼"
+                        : ""}
+                    </th>
                     <th>Action</th>
                   </tr>
                 </thead>
@@ -427,8 +547,9 @@
                         <button
                           class="btn btn-danger rounded"
                           on:click={() => openModal(item)}
-                          >Review Request</button
                         >
+                          Review Request
+                        </button>
                       </td>
                     </tr>
                   {/each}
@@ -449,167 +570,171 @@
                 </div>
                 <div class="modal-body">
                   {#if requestDetails}
-                    <div>
-                      <table class="table table-borderless">
-                        <tbody>
-                          <!--Patient Details-->
-                          <tr>
-                            <td class="col">
-                              <div class="d-flex flex-column">
-                                <span class="heading d-block fw-bold"
-                                  >Serial ID:</span
-                                >
-                                <span class="subheadings"
-                                  >{requestDetails.id}</span
-                                >
-                              </div>
-                            </td>
-                            <td class="col">
-                              <div class="d-flex flex-column">
-                                <span class="heading d-block fw-bold"
-                                  >Patient Name:</span
-                                >
-                                <span class="subheadings"
-                                  >{requestDetails.patient_name}</span
-                                >
-                              </div>
-                            </td>
-                            <td class="col">
-                              <div
-                                class="d-flex flex-column justify-content-center"
+                    <div class="row">
+                      <!-- Patient Details -->
+                      <div class="col">
+                        <div class="d-flex flex-column">
+                          <span class="heading d-block fw-bold">Serial ID:</span
+                          >
+                          <span class="subheadings">{requestDetails.id}</span>
+                        </div>
+                      </div>
+                      <div class="col">
+                        <div class="d-flex flex-column">
+                          <span class="heading d-block fw-bold"
+                            >Patient Name:</span
+                          >
+                          <span class="subheadings"
+                            >{requestDetails.patient_name}</span
+                          >
+                        </div>
+                      </div>
+                      <div class="col">
+                        <div class="d-flex flex-column justify-content-center">
+                          <span class="heading d-block fw-bold">Diagnosis:</span
+                          >
+                          <span class="subheadings"
+                            >{requestDetails.patient_diagnosis}</span
+                          >
+                        </div>
+                      </div>
+                      <div class="col">
+                        <div class="d-flex flex-column">
+                          <span class="heading d-block fw-bold"
+                            >Blood Type:</span
+                          >
+                          <span class="subheadings"
+                            >{requestDetails.patient_bloodtype}</span
+                          >
+                        </div>
+                      </div>
+                    </div>
+                    <!-- Request Details -->
+                    <div class="row">
+                      <div class="col">
+                        <div class="d-flex flex-column">
+                          <span class="heading d-block fw-bold"
+                            >Request Purpose:</span
+                          >
+                          <span class="subheadings"
+                            >{requestDetails.request_purpose}</span
+                          >
+                        </div>
+                      </div>
+                      <div class="col">
+                        <div class="d-flex flex-column">
+                          <span class="heading d-block fw-bold"
+                            >Requested Bloodpack:</span
+                          >
+                          <span class="subheadings"
+                            >{requestDetails.request_bloodpack}</span
+                          >
+                        </div>
+                      </div>
+                      <div class="col">
+                        <div class="d-flex flex-column justify-content-center">
+                          <span class="heading d-block fw-bold">Urgency:</span>
+                          <span class="subheadings"
+                            >{requestDetails.request_urgency}</span
+                          >
+                        </div>
+                      </div>
+                      <div class="col">
+                        <div class="d-flex flex-column">
+                          <span class="heading d-block fw-bold"
+                            >Date Requested:</span
+                          >
+                          <span class="subheadings">
+                            {moment(requestDetails.request_date).format(
+                              "L • hh:mma"
+                            )}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    <!-- Request Action -->
+                    <div class="row">
+                      <div class="col">
+                        <div class="d-flex flex-column">
+                          <span class="heading d-block fw-bold">Action:</span>
+                          <span class="subheadings">
+                            {#if !rowStatus.get(requestDetails.id)}
+                              <button
+                                class="btn"
+                                on:click={handleCheckButtonClick}
                               >
-                                <span class="heading d-block fw-bold"
-                                  >Diagnosis:</span
-                                >
-                                <span class="subheadings"
-                                  >{requestDetails.patient_diagnosis}</span
-                                >
-                              </div>
-                            </td>
-                            <td class="col">
-                              <div class="d-flex flex-column">
-                                <span class="heading d-block fw-bold"
-                                  >Blood Type:</span
-                                >
-                                <span class="subheadings"
-                                  >{requestDetails.patient_bloodtype}</span
-                                >
-                              </div>
-                            </td>
-                          </tr>
-                          <!-- Existing code for displaying details -->
-                          <!--Request Details-->
-                          <tr>
-                            <td class="col">
-                              <div class="d-flex flex-column">
-                                <span class="heading d-block fw-bold"
-                                  >Request Purpose:</span
-                                >
-                                <span class="subheadings"
-                                  >{requestDetails.request_purpose}</span
-                                >
-                              </div>
-                            </td>
-                            <td class="col">
-                              <div class="d-flex flex-column">
-                                <span class="heading d-block fw-bold"
-                                  >Requested Bloodpack:</span
-                                >
-                                <span class="subheadings"
-                                  >{requestDetails.request_bloodpack}</span
-                                >
-                              </div>
-                            </td>
-                            <td class="col">
-                              <div
-                                class="d-flex flex-column justify-content-center"
+                                <i
+                                  class="fa-solid fa-square-check fs-3 text-success"
+                                />
+                              </button>
+                              <button
+                                class="btn"
+                                on:click={handleXMarkButtonClick}
                               >
-                                <span class="heading d-block fw-bold"
-                                  >Urgency:</span
-                                >
-                                <span class="subheadings"
-                                  >{requestDetails.request_urgency}</span
-                                >
+                                <i
+                                  class="fa-solid fa-square-xmark fs-3 text-danger"
+                                />
+                              </button>
+                            {:else if rowStatus.get(requestDetails.id).action === "accept"}
+                              <p>Accepted</p>
+                            {:else if rowStatus.get(requestDetails.id).action === "reject"}
+                              <p>Denied!</p>
+                            {/if}
+                          </span>
+                        </div>
+                      </div>
+                      <div class="col">
+                        <div class="d-flex flex-column">
+                          <span class="heading d-block fw-bold">Remarks:</span>
+                          <span class="subheadings">
+                            {#if !rowStatus.get(requestDetails.id)}
+                              <form action="">
+                                <textarea
+                                  bind:value={remarks}
+                                  class="form-control"
+                                  style="min-width: 100%; resize:none"
+                                  placeholder="Additional remarks"
+                                />
+                              </form>
+                            {:else}
+                              <form action="">
+                                <textarea
+                                  bind:value={remarks}
+                                  class="form-control"
+                                  style="min-width: 100%; resize:none"
+                                  disabled
+                                  readonly
+                                />
+                              </form>
+                            {/if}
+                          </span>
+                        </div>
+                      </div>
+                      <div class="row">
+                        <div class="col">
+                          <div class="d-flex flex-column">
+                            <div class="d-flex flex-wrap">
+                              <span class="heading d-block fw-bold"
+                                >Blood in Stock:</span
+                              >
+                              <div class="row">
+                                {#each Object.entries(bloodTypeCounts) as [bloodType, count]}
+                                  <div class="col-sm">
+                                    <span class="me-3">
+                                      <span class="badge bg-danger"
+                                        >{bloodType}</span
+                                      >
+                                      <span class="badge bg-light text-dark"
+                                        >{count}</span
+                                      >
+                                    </span>
+                                  </div>
+                                {/each}
                               </div>
-                            </td>
-                            <td class="col">
-                              <div class="d-flex flex-column">
-                                <span class="heading d-block fw-bold"
-                                  >Date Requested:</span
-                                >
-                                <span class="subheadings"
-                                  >{moment(requestDetails.request_date).format(
-                                    "L • hh:mma"
-                                  )}</span
-                                >
-                              </div>
-                            </td>
-                          </tr>
-                          <!-- Request Action -->
-                          <tr>
-                            <td class="col">
-                              <div class="d-flex flex-column">
-                                <span class="heading d-block fw-bold"
-                                  >Action:</span
-                                >
-                                <span class="subheadings">
-                                  {#if !rowStatus.get(requestDetails.id)}
-                                    <button
-                                      class="btn"
-                                      on:click={handleCheckButtonClick}
-                                      ><i
-                                        class="fa-solid fa-square-check fs-3 text-success"
-                                      /></button
-                                    >
-                                    <button
-                                      class="btn"
-                                      on:click={handleXMarkButtonClick}
-                                      ><i
-                                        class="fa-solid fa-square-xmark fs-3 text-danger"
-                                      /></button
-                                    >
-                                  {:else if rowStatus.get(requestDetails.id).action === "accept"}
-                                    <p>Accepted</p>
-                                  {:else if rowStatus.get(requestDetails.id).action === "reject"}
-                                    <p>Denied!</p>
-                                  {/if}
-                                </span>
-                              </div>
-                            </td>
-                            <td class="col">
-                              <div class="d-flex flex-column">
-                                <span class="heading d-block fw-bold"
-                                  >Remarks:</span
-                                >
-                                {#if !rowStatus.get(requestDetails.id)}
-                                  <span class="subheadings">
-                                    <form action="">
-                                      <textarea
-                                        bind:value={remarks}
-                                        class="form-control"
-                                        style="min-width: 100%; resize:none"
-                                        placeholder="Additional remarks"
-                                      />
-                                    </form>
-                                  </span>
-                                {:else}
-                                  <span class="subheadings">
-                                    <form action="">
-                                      <textarea
-                                        bind:value={remarks}
-                                        class="form-control"
-                                        style="min-width: 100%; resize:none"
-                                        disabled
-                                        readonly
-                                      />
-                                    </form>
-                                  </span>
-                                {/if}
-                              </div>
-                            </td>
-                          </tr>
-                        </tbody>
-                      </table>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   {/if}
                 </div>
