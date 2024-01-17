@@ -149,9 +149,9 @@
               data[0].b_pos,
               data[0].b_neg,
               data[0].ab_pos,
-              data[0].ab_pos,
+              data[0].ab_neg,
               data[0].o_pos,
-              data[0].o_pos,
+              data[0].o_neg,
             ],
             backgroundColor: [
               "#cbd6e4",
@@ -437,6 +437,7 @@
               >
                 <i class="fa fa-droplet" /> Blood Inventory
               </div>
+              <!-- chart-->
               <div
                 class="card-header text-white bg-white"
                 style="background-color: white; padding: 20px; border-radius: 10px;"
