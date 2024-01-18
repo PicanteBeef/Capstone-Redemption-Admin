@@ -9,6 +9,17 @@
     let data = [];
     let originalData = [];
     let searchTerm = '';
+
+    const bloodValuePair = {
+    "A+": "a_pos",
+    "A-": "a_neg",
+    "B+": "b_pos",
+    "B-": "b_neg",
+    "AB+": "ab_pos",
+    "AB-": "ab_neg",
+    "O+": "o_pos",
+    "O-": "o_neg",
+  }
     
   //Fetch Blood Requests Data
   onMount(async () => {
@@ -48,29 +59,16 @@
 
   onMount(async () => {
     const { data: records, error } = await supabase
-      .from("blood_inventory")
+      .from("blood_stock")
       .select("*")
-      .order("blood_type", { ascending: true });
 
     if (error) {
       console.error("Error fetching data from Supabase:", error);
     } else {
-      bloodBags = records;
+      bloodBags = records[0];
+      console.log(bloodBags);
     }
   });
-
-  const calculateTotalBloodBags = (bags) => {
-    const bloodTypeCounts = {};
-
-    bags.forEach((bag) => {
-      const bloodType = bag.blood_type;
-      bloodTypeCounts[bloodType] =
-        (bloodTypeCounts[bloodType] || 0) + bag.amount;
-    });
-
-    return bloodTypeCounts;
-  };
-  $: bloodTypeCounts = calculateTotalBloodBags(bloodBags);
 
   //Modal Functions
   let requestDetails;
@@ -117,16 +115,7 @@
   rowStatus = rowStatusUpdate;
   console.log(requestDetails);
 
-  const bloodValuePair = {
-    "A+": "a_pos",
-    "A-": "a_neg",
-    "B+": "b_pos",
-    "B-": "b_neg",
-    "AB+": "ab_pos",
-    "AB-": "ab_neg",
-    "O+": "o_pos",
-    "O-": "o_neg",
-  }
+  
   const requestBloodtype = bloodValuePair[requestDetails.patient_bloodtype];
   console.log(requestBloodtype);
 
@@ -150,7 +139,6 @@
 
       if (updateError) {
         console.error('Error updating data in Supabase:', updateError.message);
-        console.log('tite ni liemel joshua dumangon lacanilao ng san jose del monte bulacan');
         return;
       }
       console.log("Blood Stock Updated Successfully.");
@@ -719,23 +707,20 @@
                       <div class="row">
                         <div class="col">
                           <div class="d-flex flex-column">
-                            <div class="d-flex flex-wrap">
+                            <div class=" flex-wrap">
                               <span class="heading d-block fw-bold"
-                                >Blood in Stock:</span
-                              >
+                                >Blood in Stock:</span>
                               <div class="row">
-                                {#each Object.entries(bloodTypeCounts) as [bloodType, count]}
                                   <div class="col-sm">
                                     <span class="me-3">
                                       <span class="badge bg-danger"
-                                        >{bloodType}</span
+                                        >{requestDetails.patient_bloodtype}</span
                                       >
                                       <span class="badge bg-light text-dark"
-                                        >{count}</span
+                                        >{bloodBags[bloodValuePair[requestDetails.patient_bloodtype]]}</span
                                       >
                                     </span>
                                   </div>
-                                {/each}
                               </div>
                             </div>
                           </div>
