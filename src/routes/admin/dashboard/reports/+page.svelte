@@ -121,7 +121,7 @@
       // Once all data is fetched successfully, create the charts
       barChart();
       bloodInAndOutChart();
-      groupedBarChart();
+      // groupedBarChart();
     }
   });
 
@@ -257,62 +257,113 @@
     });
   }
 
-  // Variable to store the blood requests chart canvas reference
-  let bloodRequestsChartCanvas;
+  // // Variable to store the blood requests chart canvas reference
+  // let bloodRequestsChartCanvas;
 
-  // Function to create a grouped bar chart
-  function groupedBarChart() {
-    const ctx = bloodRequestsChartCanvas.getContext("2d");
+  // // Function to create a grouped bar chart
+  // function groupedBarChart() {
+  //   const ctx = bloodRequestsChartCanvas.getContext("2d");
 
-    // Extract data for the chart (adjust this based on your data structure)
-    const labels = data3.map((record) => record.date); // Use appropriate field for x-axis labels
+  //   // Extract data for the chart (adjust this based on your data structure)
+  //   const labels = data3.map((record) => record.request_urgency); // Use appropriate field for x-axis labels
 
-    // Separate data into different arrays based on urgency level
-    const lowData = data3.map((record) =>
-      record.urgency_level === "low" ? record.amount : 0
-    );
-    const midData = data3.map((record) =>
-      record.urgency_level === "mid" ? record.amount : 0
-    );
-    const highData = data3.map((record) =>
-      record.urgency_level === "high" ? record.amount : 0
-    );
+  //   // Separate data into different arrays based on urgency level
+  //   const lowData = data3.map((record) =>
+  //     record.request_urgency === "low" ? record.amount : 0
+  //   );
+  //   const midData = data3.map((record) =>
+  //     record.request_urgency === "mid" ? record.amount : 0
+  //   );
+  //   const highData = data3.map((record) =>
+  //     record.request_urgency === "high" ? record.amount : 0
+  //   );
+  //   console.log("Low Data:", lowData);
+  //   console.log("Mid Data:", midData);
+  //   console.log("High Data:", highData);
 
-    const datasets = [
-      {
-        label: "Low Urgency",
-        data: lowData,
-        backgroundColor: "#4CAF50", // Green color for low urgency
-        borderColor: "#4CAF50",
-        borderWidth: 1,
-      },
-      {
-        label: "Mid Urgency",
-        data: midData,
-        backgroundColor: "#FFC107", // Yellow color for mid urgency
-        borderColor: "#FFC107",
-        borderWidth: 1,
-      },
-      {
-        label: "High Urgency",
-        data: highData,
-        backgroundColor: "#FF5722", // Red color for high urgency
-        borderColor: "#FF5722",
-        borderWidth: 1,
-      },
-    ];
+  //   const datasets = [
+  //     {
+  //       label: "Low Urgency",
+  //       data: lowData,
+  //       backgroundColor: "#4CAF50", // Green color for low urgency
+  //       borderColor: "#4CAF50",
+  //       borderWidth: 1,
+  //     },
+  //     {
+  //       label: "Mid Urgency",
+  //       data: midData,
+  //       backgroundColor: "#FFC107", // Yellow color for mid urgency
+  //       borderColor: "#FFC107",
+  //       borderWidth: 1,
+  //     },
+  //     {
+  //       label: "High Urgency",
+  //       data: highData,
+  //       backgroundColor: "#FF5722", // Red color for high urgency
+  //       borderColor: "#FF5722",
+  //       borderWidth: 1,
+  //     },
+  //   ];
 
+  //   new Chart(ctx, {
+  //     type: "bar",
+  //     data: {
+  //       labels,
+  //       datasets,
+  //     },
+  //     options: {
+  //       // Customize options as needed
+  //     },
+  //   });
+  // }
+  onMount(async () => {
+    const { data: bloodRequestsData, error } = await supabase
+      .from('blood_requests')
+      .select('request_urgency', 'request_date');
+
+    if (error) {
+      console.error('Error fetching data from Supabase:', error.message);
+      return;
+    }
+    const urgencyLabels = ['Low', 'Medium', 'High'];
+    const urgencyData = [0, 0, 0];
+
+    bloodRequestsData.forEach(record => {
+      if (record.request_urgency === 'low') urgencyData[0]++;
+      else if (record.request_urgency === 'medium') urgencyData[1]++;
+      else if (record.request_urgency === 'high') urgencyData[2]++;
+    });
+
+    const ctx = document.getElementById('urgencyChart').getContext('2d');
     new Chart(ctx, {
-      type: "bar",
+      type: 'bar',
       data: {
-        labels,
-        datasets,
+        labels: urgencyLabels,
+        datasets: [{
+          label: 'Blood Request Urgency',
+          data: urgencyData,
+          backgroundColor: [
+            'rgba(90, 255, 50, 0.5)',
+            'rgba(255, 205, 86, 0.5)',
+            'rgba(255, 99, 132, 0.5)',
+          ],
+          borderColor: [
+            'rgba(50, 255, 20, 1)',
+            'rgba(255, 205, 86, 1)',
+            'rgba(75, 192, 192, 1)',
+          ],
+          borderWidth: 1,
+        }],
       },
       options: {
-        // Customize options as needed
+        scales: {
+          y: {
+            beginAtZero: true,
+          },
+        },
       },
     });
-  }
+  });
 </script>
 
 <html lang="en">
@@ -464,57 +515,7 @@
           </div>
         </div>
         <div>
-          <div class="row mx-1">
-            <!-- Transaction Section-->
-            <div class="card mb-3 col mx-1">
-              <div class="card-header text-danger">
-                <i class="fa fa-bar-chart" /> Recent Transactions
-              </div>
-              <div class="card-body">
-                <div class="row">
-                  <div class="chart-transactions">
-                    <!-- donut chart for blood transactions -->
-                    <canvas
-                      bind:this={bloodInAndOutChartCanvas}
-                      id="myBloodInAndOutChart"
-                      style="width:100%; height:00px;"
-                    ></canvas>
-
-                    <a
-                      class="btn btn-danger"
-                      href="/admin/dashboard/bloodtransac"
-                      >View More <i class="fa fa-angle-right" /></a
-                    >
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!--Requests Section-->
-            <div class="card mb-3 col mx-1">
-              <div class="card-header text-danger">
-                <i class="fa fa-bar-chart" /> Blood Requests
-              </div>
-              <div class="card-body">
-                <div class="row">
-                  <div class="blood-requests">
-                    <!-- Grouped bar chart for blood requests -->
-                    <canvas
-                      bind:this={bloodRequestsChartCanvas}
-                      id="myBloodRequestsChart"
-                      style="width:100%; height:300px;"
-                    ></canvas>
-
-                    <a
-                      class="btn btn-danger"
-                      href="/admin/dashboard/bloodrequests"
-                      >View More <i class="fa fa-angle-right" /></a
-                    >
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+        
 
           <div class="row mx-1">
             <!-- Transaction Section-->
@@ -552,8 +553,8 @@
                   <div class="blood-requests">
                     <!-- Grouped bar chart for blood requests -->
                     <canvas
-                      bind:this={bloodRequestsChartCanvas}
-                      id="myBloodRequestsChart"
+
+                      id="urgencyChart"
                       style="width:200px; height:200px;"
                     ></canvas>
 
