@@ -410,10 +410,14 @@
     <!-- Latest compiled JavaScript -->
     <!-- Latest compiled JavaScript -->
     <!-- Latest compiled JavaScript -->
+    <!-- Latest compiled JavaScript -->
+    <!-- Latest compiled JavaScript -->
     <script
       src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"
     ></script>
 
+    <!--Latest complied Popperjs-->
+    <!--Latest complied Popperjs-->
     <!--Latest complied Popperjs-->
     <!--Latest complied Popperjs-->
     <!--Latest complied Popperjs-->
@@ -442,6 +446,8 @@
       referrerpolicy="no-referrer"
     />
 
+    <!--Charts.js Library-->
+    <!--Charts.js Library-->
     <!--Charts.js Library-->
     <!--Charts.js Library-->
     <!--Charts.js Library-->
@@ -563,10 +569,16 @@
                 class="card mb-3 col mx-1"
                 style="width: 500px; height: 500px;"
               >
-                <div class="card-header text-danger">
-                  <!-- Card Title -->
-                  <i class="fa fa-bar-chart" /> Donation Appointments
-                </div>
+                <a
+                  href="http://tiny.cc/jww7wz"
+                  target="_blank"
+                  style="text-decoration: none; color: inherit;"
+                >
+                  <div class="card-header text-danger">
+                    <!-- Card Title -->
+                    <i class="fa fa-bar-chart" /> Donation Appointments
+                  </div>
+                </a>
                 <div class="card-body" style="height: 400px;">
                   <div class="row">
                     <div class="donation-appointments" style="height: 400px;">
@@ -575,8 +587,7 @@
                         title="Appointments"
                         height="100%"
                         width="100%"
-                        src="https://docs.google.com/spreadsheets/d/1cJrLiHqe5YurQatqDq1_XZILkBxwoKB9tHc4Y8O1_v8/gviz/tq?tqx=out:html&tgid=433245028
-                        "
+                        src="https://docs.google.com/spreadsheets/d/1cJrLiHqe5YurQatqDq1_XZILkBxwoKB9tHc4Y8O1_v8/gviz/tq?tqx=out:html&tgid=433245028"
                         frameborder="0"
                         allowfullscreen
                       ></iframe>
