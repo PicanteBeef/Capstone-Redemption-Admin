@@ -525,12 +525,11 @@
               </div>
               <div class="card-body">
                 <div class="row">
-                  <div class="chart-transactions">
+                  <div class="chart-transactions" style="height:300px;">
                     <!-- donut chart for blood transactions -->
                     <canvas
                       bind:this={bloodInAndOutChartCanvas}
                       id="myBloodInAndOutChart"
-                      style="width:100%; height:200px;"
                     ></canvas>
 
                     <a
@@ -549,13 +548,11 @@
                 <i class="fa fa-bar-chart" /> Blood Requests
               </div>
               <div class="card-body">
-                <div class="row">
+                <div class="row" justify-content-center>
                   <div class="blood-requests">
                     <!-- Grouped bar chart for blood requests -->
                     <canvas
-
                       id="urgencyChart"
-                      style="width:200px; height:200px;"
                     ></canvas>
 
                     <a
