@@ -402,10 +402,26 @@
     <!-- Latest compiled JavaScript -->
     <!-- Latest compiled JavaScript -->
     <!-- Latest compiled JavaScript -->
+    <!-- Latest compiled JavaScript -->
+    <!-- Latest compiled JavaScript -->
+    <!-- Latest compiled JavaScript -->
+    <!-- Latest compiled JavaScript -->
+    <!-- Latest compiled JavaScript -->
+    <!-- Latest compiled JavaScript -->
+    <!-- Latest compiled JavaScript -->
+    <!-- Latest compiled JavaScript -->
     <script
       src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"
     ></script>
 
+    <!--Latest complied Popperjs-->
+    <!--Latest complied Popperjs-->
+    <!--Latest complied Popperjs-->
+    <!--Latest complied Popperjs-->
+    <!--Latest complied Popperjs-->
+    <!--Latest complied Popperjs-->
+    <!--Latest complied Popperjs-->
+    <!--Latest complied Popperjs-->
     <!--Latest complied Popperjs-->
     <!--Latest complied Popperjs-->
     <!--Latest complied Popperjs-->
@@ -426,6 +442,14 @@
       referrerpolicy="no-referrer"
     />
 
+    <!--Charts.js Library-->
+    <!--Charts.js Library-->
+    <!--Charts.js Library-->
+    <!--Charts.js Library-->
+    <!--Charts.js Library-->
+    <!--Charts.js Library-->
+    <!--Charts.js Library-->
+    <!--Charts.js Library-->
     <!--Charts.js Library-->
     <!--Charts.js Library-->
     <!--Charts.js Library-->
@@ -508,72 +532,107 @@
       </nav>
     </header>
 
+    <!-- Main Content -->
     <main>
-      <!--Main Content-->
       <div class="content-wrapper" style="margin-top: 5rem;">
-        <!--Dashboard-->
+        <!-- Dashboard -->
         <div class="container text-center">
           <div class="row">
+            <!-- First Row -->
             <div class="row justify-content-center mt-4 mb-4">
+              <!-- Blood Inventory Card -->
               <div
-                class="card-header text-white bg-danger"
-                style="background-color: white; border-radius: 10px;"
+                class="card mb-3 col mx-1"
+                style="width: 500px; height: 500px;"
               >
-                <i class="fa fa-droplet" /> Blood Inventory
+                <div class="card-header text-danger">
+                  <i class="fa fa-bar-chart" /> Blood Inventory
+                </div>
+                <!-- Bar chart for blood stock -->
+                <div
+                  class="card-header text-white bg-white"
+                  style="background-color: white; padding: 20px; border-radius: 10px; height: 400px;"
+                >
+                  <canvas id="myChart" style="width:100%; height:100%;"
+                  ></canvas>
+                </div>
               </div>
-              <!-- bar chart for blood stock-->
-              <div
-                class="card-header text-white bg-white"
-                style="background-color: white; padding: 20px; border-radius: 10px;"
-              >
-                <canvas id="myChart" style="width:100%; height:300px;"></canvas>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div>
-          <div class="row mx-1">
-            <!-- Transaction Section-->
-            <div class="card mb-3 col mx-1">
-              <div class="card-header text-danger">
-                <i class="fa fa-bar-chart" /> Recent Transactions
-              </div>
-              <div class="card-body">
-                <div class="row">
-                  <div class="chart-transactions" style="height:400px;">
-                    <!-- donut chart for blood transactions -->
-                    <canvas
-                      bind:this={bloodInAndOutChartCanvas}
-                      id="myBloodInAndOutChart"
-                      style="width: 500px;"
-                    ></canvas>
 
-                    <a
-                      class="btn btn-danger"
-                      href="/admin/dashboard/bloodtransac"
-                      >View More <i class="fa fa-angle-right" /></a
-                    >
+              <!-- Donation Appointments -->
+              <div
+                class="card mb-3 col mx-1"
+                style="width: 500px; height: 500px;"
+              >
+                <div class="card-header text-danger">
+                  <!-- Card Title -->
+                  <i class="fa fa-bar-chart" /> Donation Appointments
+                </div>
+                <div class="card-body" style="height: 400px;">
+                  <div class="row">
+                    <div class="donation-appointments" style="height: 400px;">
+                      <!-- Embed Google Sheets -->
+                      <iframe
+                        title="Appointments"
+                        height="100%"
+                        width="100%"
+                        src="https://docs.google.com/spreadsheets/d/1cJrLiHqe5YurQatqDq1_XZILkBxwoKB9tHc4Y8O1_v8/gviz/tq?tqx=out:html&tgid=433245028
+                        "
+                        frameborder="0"
+                        allowfullscreen
+                      ></iframe>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
 
-            <!--Requests Section-->
-            <div class="card mb-3 col mx-1">
-              <div class="card-header text-danger">
-                <i class="fa fa-bar-chart" /> Blood Requests
+            <!-- Second Row -->
+            <div class="row mx-1">
+              <!-- Recent Transactions Card -->
+              <div
+                class="card mb-3 col mx-1"
+                style="width: 500px; height: 500px;"
+              >
+                <div class="card-header text-danger">
+                  <i class="fa fa-bar-chart" /> Recent Transactions
+                </div>
+                <div class="card-body" style="height: 400px;">
+                  <div class="row">
+                    <div class="chart-transactions" style="height: 350px;">
+                      <!-- Donut chart for blood transactions -->
+                      <canvas
+                        bind:this={bloodInAndOutChartCanvas}
+                        id="myBloodInAndOutChart"
+                      ></canvas>
+                      <a
+                        class="btn btn-danger"
+                        href="/admin/dashboard/bloodtransac"
+                        >View More <i class="fa fa-angle-right" /></a
+                      >
+                    </div>
+                  </div>
+                </div>
               </div>
-              <div class="card-body">
-                <div class="row" justify-content-center>
-                  <div class="blood-requests">
-                    <!-- Grouped bar chart for blood requests -->
-                    <canvas id="urgencyChart"></canvas>
 
-                    <a
-                      class="btn btn-danger"
-                      href="/admin/dashboard/bloodrequests"
-                      >View More <i class="fa fa-angle-right" /></a
-                    >
+              <!-- Blood Requests Card -->
+              <div
+                class="card mb-3 col mx-1"
+                style="width: 500px; height: 500px;"
+              >
+                <div class="card-header text-danger">
+                  <i class="fa fa-bar-chart" /> Blood Requests
+                </div>
+                <div class="card-body" style="height: 400px;">
+                  <div class="row justify-content-center">
+                    <div class="blood-requests" style="height: 100%;">
+                      <!-- Grouped bar chart for blood requests -->
+                      <canvas id="urgencyChart"></canvas>
+                      <a
+                        class="btn btn-danger"
+                        href="/admin/dashboard/bloodrequests"
+                        >View More <i class="fa fa-angle-right" /></a
+                      >
+                    </div>
                   </div>
                 </div>
               </div>
@@ -581,9 +640,9 @@
           </div>
         </div>
 
-        <!-- Scroll to Top Button-->
+        <!-- Scroll to Top Button -->
         <a class="scroll-to-top rounded" href="#page-top">
-          <i class="fa fa-angle-up" />
+          <i class="fa fa-angle-up"></i>
         </a>
       </div>
     </main>
