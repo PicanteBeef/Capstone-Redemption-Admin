@@ -252,7 +252,13 @@
         ],
       },
       options: {
-        // Your options for this specific chart
+        legend: {
+          display: true,
+          position: "left",
+          labels: {
+            fontColor: "white", // You can set the legend text color
+          },
+        },
       },
     });
   }
@@ -318,42 +324,44 @@
   // }
   onMount(async () => {
     const { data: bloodRequestsData, error } = await supabase
-      .from('blood_requests')
-      .select('request_urgency', 'request_date');
+      .from("blood_requests")
+      .select("request_urgency", "request_date");
 
     if (error) {
-      console.error('Error fetching data from Supabase:', error.message);
+      console.error("Error fetching data from Supabase:", error.message);
       return;
     }
-    const urgencyLabels = ['Low', 'Medium', 'High'];
+    const urgencyLabels = ["Low", "Medium", "High"];
     const urgencyData = [0, 0, 0];
 
-    bloodRequestsData.forEach(record => {
-      if (record.request_urgency === 'low') urgencyData[0]++;
-      else if (record.request_urgency === 'medium') urgencyData[1]++;
-      else if (record.request_urgency === 'high') urgencyData[2]++;
+    bloodRequestsData.forEach((record) => {
+      if (record.request_urgency === "low") urgencyData[0]++;
+      else if (record.request_urgency === "medium") urgencyData[1]++;
+      else if (record.request_urgency === "high") urgencyData[2]++;
     });
 
-    const ctx = document.getElementById('urgencyChart').getContext('2d');
+    const ctx = document.getElementById("urgencyChart").getContext("2d");
     new Chart(ctx, {
-      type: 'bar',
+      type: "bar",
       data: {
         labels: urgencyLabels,
-        datasets: [{
-          label: 'Blood Request Urgency',
-          data: urgencyData,
-          backgroundColor: [
-            'rgba(90, 255, 50, 0.5)',
-            'rgba(255, 205, 86, 0.5)',
-            'rgba(255, 99, 132, 0.5)',
-          ],
-          borderColor: [
-            'rgba(50, 255, 20, 1)',
-            'rgba(255, 205, 86, 1)',
-            'rgba(75, 192, 192, 1)',
-          ],
-          borderWidth: 1,
-        }],
+        datasets: [
+          {
+            label: "Blood Request Urgency",
+            data: urgencyData,
+            backgroundColor: [
+              "rgba(90, 255, 50, 0.5)",
+              "rgba(255, 205, 86, 0.5)",
+              "rgba(255, 99, 132, 0.5)",
+            ],
+            borderColor: [
+              "rgba(50, 255, 20, 1)",
+              "rgba(255, 205, 86, 1)",
+              "rgba(75, 192, 192, 1)",
+            ],
+            borderWidth: 1,
+          },
+        ],
       },
       options: {
         scales: {
@@ -391,10 +399,16 @@
 
     <!-- Latest compiled JavaScript -->
     <!-- Latest compiled JavaScript -->
+    <!-- Latest compiled JavaScript -->
+    <!-- Latest compiled JavaScript -->
+    <!-- Latest compiled JavaScript -->
     <script
       src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"
     ></script>
 
+    <!--Latest complied Popperjs-->
+    <!--Latest complied Popperjs-->
+    <!--Latest complied Popperjs-->
     <!--Latest complied Popperjs-->
     <!--Latest complied Popperjs-->
     <script
@@ -412,6 +426,9 @@
       referrerpolicy="no-referrer"
     />
 
+    <!--Charts.js Library-->
+    <!--Charts.js Library-->
+    <!--Charts.js Library-->
     <!--Charts.js Library-->
     <!--Charts.js Library-->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -515,8 +532,6 @@
           </div>
         </div>
         <div>
-        
-
           <div class="row mx-1">
             <!-- Transaction Section-->
             <div class="card mb-3 col mx-1">
@@ -525,11 +540,12 @@
               </div>
               <div class="card-body">
                 <div class="row">
-                  <div class="chart-transactions" style="height:300px;">
+                  <div class="chart-transactions" style="height:400px;">
                     <!-- donut chart for blood transactions -->
                     <canvas
                       bind:this={bloodInAndOutChartCanvas}
                       id="myBloodInAndOutChart"
+                      style="width: 500px;"
                     ></canvas>
 
                     <a
@@ -551,9 +567,7 @@
                 <div class="row" justify-content-center>
                   <div class="blood-requests">
                     <!-- Grouped bar chart for blood requests -->
-                    <canvas
-                      id="urgencyChart"
-                    ></canvas>
+                    <canvas id="urgencyChart"></canvas>
 
                     <a
                       class="btn btn-danger"
@@ -669,4 +683,11 @@
     background: #741212;
   }
 
+  .chart-transactions {
+    height: 400px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
 </style>
