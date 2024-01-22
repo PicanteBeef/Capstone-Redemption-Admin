@@ -405,24 +405,10 @@
     <!-- Latest compiled JavaScript -->
     <!-- Latest compiled JavaScript -->
     <!-- Latest compiled JavaScript -->
-    <!-- Latest compiled JavaScript -->
-    <!-- Latest compiled JavaScript -->
-    <!-- Latest compiled JavaScript -->
-    <!-- Latest compiled JavaScript -->
-    <!-- Latest compiled JavaScript -->
-    <!-- Latest compiled JavaScript -->
-    <!-- Latest compiled JavaScript -->
     <script
       src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"
     ></script>
 
-    <!--Latest complied Popperjs-->
-    <!--Latest complied Popperjs-->
-    <!--Latest complied Popperjs-->
-    <!--Latest complied Popperjs-->
-    <!--Latest complied Popperjs-->
-    <!--Latest complied Popperjs-->
-    <!--Latest complied Popperjs-->
     <!--Latest complied Popperjs-->
     <!--Latest complied Popperjs-->
     <!--Latest complied Popperjs-->
@@ -446,13 +432,6 @@
       referrerpolicy="no-referrer"
     />
 
-    <!--Charts.js Library-->
-    <!--Charts.js Library-->
-    <!--Charts.js Library-->
-    <!--Charts.js Library-->
-    <!--Charts.js Library-->
-    <!--Charts.js Library-->
-    <!--Charts.js Library-->
     <!--Charts.js Library-->
     <!--Charts.js Library-->
     <!--Charts.js Library-->
@@ -547,10 +526,7 @@
             <!-- First Row -->
             <div class="row justify-content-center mt-4 mb-4">
               <!-- Blood Inventory Card -->
-              <div
-                class="card mb-3 col mx-1"
-                style="width: 500px; height: 500px;"
-              >
+              <div class="card mb-3 col mx-1" style="height: 500px;">
                 <div class="card-header text-danger">
                   <i class="fa fa-bar-chart" /> Blood Inventory
                 </div>
@@ -563,42 +539,30 @@
                   ></canvas>
                 </div>
               </div>
+            </div>
 
-              <!-- Donation Appointments -->
-              <div
-                class="card mb-3 col mx-1"
-                style="width: 500px; height: 500px;"
-              >
-                <a
-                  href="http://tiny.cc/jww7wz"
-                  target="_blank"
-                  style="text-decoration: none; color: inherit;"
-                >
-                  <div class="card-header text-danger">
-                    <!-- Card Title -->
-                    <i class="fa fa-bar-chart" /> Donation Appointments
-                  </div>
-                </a>
+            <div class="row justify-content-center mt-4 mb-4">
+              <!-- Donation Appointments Card -->
+              <div class="card mb-3 col mx-1" style="height: 500px;">
+                <div class="card-header text-danger">
+                  <i class="fa fa-bar-chart" /> Donation Appointments
+                </div>
+                <!-- Bar chart for blood stock -->
                 <div class="card-body" style="height: 400px;">
-                  <div class="row">
-                    <div class="donation-appointments" style="height: 400px;">
-                      <!-- Embed Google Sheets -->
-                      <iframe
-                        title="Appointments"
-                        height="100%"
-                        width="100%"
-                        src="https://docs.google.com/spreadsheets/d/1cJrLiHqe5YurQatqDq1_XZILkBxwoKB9tHc4Y8O1_v8/gviz/tq?tqx=out:html&tgid=433245028"
-                        frameborder="0"
-                        allowfullscreen
-                      ></iframe>
-                    </div>
-                  </div>
+                  <!-- Embed Google Sheets -->
+                  <iframe
+                    title="Appointments"
+                    height="100%"
+                    width="100%"
+                    src="https://docs.google.com/spreadsheets/d/1cJrLiHqe5YurQatqDq1_XZILkBxwoKB9tHc4Y8O1_v8/gviz/tq?tqx=out:html&tgid=433245028"
+                    frameborder="0"
+                    allowfullscreen
+                  ></iframe>
                 </div>
               </div>
             </div>
 
-            <!-- Second Row -->
-            <div class="row mx-1">
+            <div class="row justify-content-center mt-4 mb-4">
               <!-- Recent Transactions Card -->
               <div
                 class="card mb-3 col mx-1"
@@ -759,5 +723,10 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
+  }
+
+  .card-body,
+  .card-body iframe {
+    border-radius: 10px;
   }
 </style>
