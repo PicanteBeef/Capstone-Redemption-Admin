@@ -386,6 +386,146 @@
   <main>
     <!--Main Content-->
     <div class="content-wrapper" style="margin-top: 5rem;">
+
+      <!-- Entries Form -->
+      <div class="card mb-3 mx-1" id="blood-request-form">
+        <div class="card-header text-danger">
+          <i class="fa fa-droplet" /> New Donation Form
+        </div>
+        <div class="card-body">
+          <form on:submit={handleSubmit}>
+            <div class="row">
+              <!-- Column 1 -->
+              <div class="col-md-6">
+                
+                <div class="mb-3">
+                  <label for="donorName" class="form-label">Donor Name<span class="text-danger">*</span></label>
+                  <div class="row">
+                    <div class="col-md-6">
+                        <input type="text" class="form-control" id="firstName" placeholder="First Name" bind:value={firstName} required />
+                    </div>
+                    <div class="col-md-6">
+                        <input type="text" class="form-control" id="lastName" placeholder="Last Name" bind:value={lastName} required />
+                    </div>
+                  </div>
+                </div>
+
+                <div class="mb-3">
+                  <div class="row">
+                    <div class="col-md-6">
+                        <label for="donorBirth" class="form-label">Birthdate<span class="text-danger">*</span></label>
+                        <input type="date" class="form-control" id="donorBirth" bind:value={donorBirth} required />
+                    </div>
+                    <div class="col-md-6">
+                        <label for="donorSex" class="form-label">Gender<span class="text-danger">*</span></label>
+                        <select class="form-control" id="donorSex" bind:value={donorSex} required>
+                          <option value="Male">Male</option>
+                          <option value="Female">Female</option>
+                          <option value="Others">Others</option>
+                        </select>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="mb-3">
+                  <div class="row">
+                    <div class="col-md-6">
+                      <label for="donorBlood" class="form-label">Blood Type<span class="text-danger">*</span></label>
+                        <select class="form-control" id="donorBlood" bind:value={donorBlood} required>
+                          <option value="A+">A+</option>
+                          <option value="A-">A-</option>
+                          <option value="B+">B+</option>
+                          <option value="B-">B-</option>F
+                          <option value="AB+">AB+</option>
+                          <option value="AB-">AB-</option>
+                          <option value="O+">O+</option>
+                          <option value="O-">O-</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                      <label for="donorStatus" class="form-label">Civil Status<span class="text-danger">*</span></label>
+                      <select class="form-control" id="donorStatus" bind:value={donorStatus} required>
+                        <option value="Single">Single</option>
+                        <option value="Married">Married</option>
+                        <option value="Annulled">Annulled</option>
+                        <option value="Separated">Separated</option>
+                        <option value="Widowed">Widowed</option>
+                      </select>
+                  </div>
+                  </div>
+                  
+                </div>
+
+                <div class="mb-3">
+                  <div class="row">
+                    <div class="col-md-6">
+                      <label for="donorNum" class="form-label">Contact Number<span class="text-danger">*</span></label>
+                      <div class="input-group">
+                        <button class="btn btn-outline-secondary" type="button" id="button-addon1" disabled>+63</button>
+                        <input type="text" class="form-control" id="donorNum" placeholder="Contact Number" bind:value={donorNum} required />
+                      </div>
+                    </div>
+                    <div class="col-md-6">
+                      <label for="donorEmail" class="form-label">Email<span class="text-danger">*</span></label>
+                      <input type="email" class="form-control" id="donorEmail" placeholder="user@email.com" bind:value={donorEmail} required />
+                    </div>
+                </div>
+                
+                </div>
+
+              </div>
+              <!-- Column 2 -->
+              <div class="col-md-6">
+                <div class="mb-3">
+                  <div class="row">
+                    <div class="col-md-6">
+                      <label for="donorType" class="form-label">Type of Donation<span class="text-danger">*</span></label>
+                      <select class="form-control" id="donorType" bind:value={donorType} required>
+                        <option value="Whole">Whole</option>
+                        <option value="Packed Red Cell">Packed Red Cell</option>
+                        <option value="Washed Red Cell">Washed Red Cell</option>
+                        <option value="Platelet Concentrate">Platelet Concentrate</option>
+                        <option value="Fresh Frozen Plasma">Fresh Frozen Plasma</option>
+                      </select>
+                    </div>
+                    <div class="col-md-6">
+                      <label for="donorVolume" class="form-label">Volume of Donated Blood<span class="text-danger">*</span></label>
+                      <div class="input-group">
+                        <input type="text" inputmode="numeric" class="form-control" id="donorVolume" placeholder="Volume" bind:value={donorVolume}  required />
+                        <button class="btn btn-outline-secondary" type="button" id="button-addon1" disabled>ml</button>
+                      </div>
+                    </div>
+                  </div>
+                  
+                </div>
+                <div class="mb-3">
+                  <div class="row">
+                    <div class="col-md-6">
+                      <label for="donorPulse" class="form-label">Pulse<span class="text-danger">*</span></label>
+                      <input type="text" inputmode="numeric" class="form-control" id="donorPulse" placeholder="Pulse" bind:value={donorPulse} required />
+                    </div>
+                    <div class="col-md-6">
+                      <label for="donorBP" class="form-label">Blood Pressure<span class="text-danger">*</span></label>
+                      <input type="text" inputmode="numeric" class="form-control" id="donorBP" placeholder="Blood Pressure" bind:value={donorBP} required />
+                    </div>
+                  </div>
+                </div>
+                
+                <div class="mb-3">
+                  <label for="donationEvent" class="form-label">Event or Location of Donation<span class="text-danger">*</span></label>
+                  <div class="row">
+                    <div class="col">
+                        <input type="text" class="form-control" id="donationEvent" placeholder="Location or Event" bind:value={donationEvent} required />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <button type="submit" class="btn btn-danger">Confirm Donation</button>
+          </form>
+        </div>
+      </div>
+      <!--End of entries form-->
       <!-- Transaction Section-->
       <div>
         <!--Blood Inventory-->
@@ -465,146 +605,6 @@
           </div>
         {/if}
         <!-- end of notifications-->
-
-        <!-- Entries Form -->
-        <div class="card mb-3 mx-1" id="blood-request-form">
-          <div class="card-header text-danger">
-            <i class="fa fa-droplet" /> New Donation Form
-          </div>
-          <div class="card-body">
-            <form on:submit={handleSubmit}>
-              <div class="row">
-                <!-- Column 1 -->
-                <div class="col-md-6">
-                  
-                  <div class="mb-3">
-                    <label for="donorName" class="form-label">Donor Name<span class="text-danger">*</span></label>
-                    <div class="row">
-                      <div class="col-md-6">
-                          <input type="text" class="form-control" id="firstName" placeholder="First Name" bind:value={firstName} required />
-                      </div>
-                      <div class="col-md-6">
-                          <input type="text" class="form-control" id="lastName" placeholder="Last Name" bind:value={lastName} required />
-                      </div>
-                    </div>
-                  </div>
-
-                  <div class="mb-3">
-                    <div class="row">
-                      <div class="col-md-6">
-                          <label for="donorBirth" class="form-label">Birthdate<span class="text-danger">*</span></label>
-                          <input type="date" class="form-control" id="donorBirth" bind:value={donorBirth} required />
-                      </div>
-                      <div class="col-md-6">
-                          <label for="donorSex" class="form-label">Gender<span class="text-danger">*</span></label>
-                          <select class="form-control" id="donorSex" bind:value={donorSex} required>
-                            <option value="Male">Male</option>
-                            <option value="Female">Female</option>
-                            <option value="Others">Others</option>
-                          </select>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div class="mb-3">
-                    <div class="row">
-                      <div class="col-md-6">
-                        <label for="donorBlood" class="form-label">Blood Type<span class="text-danger">*</span></label>
-                          <select class="form-control" id="donorBlood" bind:value={donorBlood} required>
-                            <option value="A+">A+</option>
-                            <option value="A-">A-</option>
-                            <option value="B+">B+</option>
-                            <option value="B-">B-</option>F
-                            <option value="AB+">AB+</option>
-                            <option value="AB-">AB-</option>
-                            <option value="O+">O+</option>
-                            <option value="O-">O-</option>
-                          </select>
-                      </div>
-                      <div class="col-md-6">
-                        <label for="donorStatus" class="form-label">Civil Status<span class="text-danger">*</span></label>
-                        <select class="form-control" id="donorStatus" bind:value={donorStatus} required>
-                          <option value="Single">Single</option>
-                          <option value="Married">Married</option>
-                          <option value="Annulled">Annulled</option>
-                          <option value="Separated">Separated</option>
-                          <option value="Widowed">Widowed</option>
-                        </select>
-                    </div>
-                    </div>
-                    
-                  </div>
-
-                  <div class="mb-3">
-                    <div class="row">
-                      <div class="col-md-6">
-                        <label for="donorNum" class="form-label">Contact Number<span class="text-danger">*</span></label>
-                        <div class="input-group">
-                          <button class="btn btn-outline-secondary" type="button" id="button-addon1" disabled>+63</button>
-                          <input type="text" class="form-control" id="donorNum" placeholder="Contact Number" bind:value={donorNum} required />
-                        </div>
-                      </div>
-                      <div class="col-md-6">
-                        <label for="donorEmail" class="form-label">Email<span class="text-danger">*</span></label>
-                        <input type="email" class="form-control" id="donorEmail" placeholder="user@email.com" bind:value={donorEmail} required />
-                      </div>
-                  </div>
-                  
-                  </div>
-
-                </div>
-                <!-- Column 2 -->
-                <div class="col-md-6">
-                  <div class="mb-3">
-                    <div class="row">
-                      <div class="col-md-6">
-                        <label for="donorType" class="form-label">Type of Donation<span class="text-danger">*</span></label>
-                        <select class="form-control" id="donorType" bind:value={donorType} required>
-                          <option value="Whole">Whole</option>
-                          <option value="Packed Red Cell">Packed Red Cell</option>
-                          <option value="Washed Red Cell">Washed Red Cell</option>
-                          <option value="Platelet Concentrate">Platelet Concentrate</option>
-                          <option value="Fresh Frozen Plasma">Fresh Frozen Plasma</option>
-                        </select>
-                      </div>
-                      <div class="col-md-6">
-                        <label for="donorVolume" class="form-label">Volume of Donated Blood<span class="text-danger">*</span></label>
-                        <div class="input-group">
-                          <input type="text" inputmode="numeric" class="form-control" id="donorVolume" placeholder="Volume" bind:value={donorVolume}  required />
-                          <button class="btn btn-outline-secondary" type="button" id="button-addon1" disabled>ml</button>
-                        </div>
-                      </div>
-                    </div>
-                    
-                  </div>
-                  <div class="mb-3">
-                    <div class="row">
-                      <div class="col-md-6">
-                        <label for="donorPulse" class="form-label">Pulse<span class="text-danger">*</span></label>
-                        <input type="text" inputmode="numeric" class="form-control" id="donorPulse" placeholder="Pulse" bind:value={donorPulse} required />
-                      </div>
-                      <div class="col-md-6">
-                        <label for="donorBP" class="form-label">Blood Pressure<span class="text-danger">*</span></label>
-                        <input type="text" inputmode="numeric" class="form-control" id="donorBP" placeholder="Blood Pressure" bind:value={donorBP} required />
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div class="mb-3">
-                    <label for="donationEvent" class="form-label">Event or Location of Donation<span class="text-danger">*</span></label>
-                    <div class="row">
-                      <div class="col">
-                          <input type="text" class="form-control" id="donationEvent" placeholder="Location or Event" bind:value={donationEvent} required />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <button type="submit" class="btn btn-danger">Confirm Donation</button>
-            </form>
-          </div>
-        </div>
-        <!--End of entries form-->
 
         <!--footer-->
         <footer class="sticky-footer">
