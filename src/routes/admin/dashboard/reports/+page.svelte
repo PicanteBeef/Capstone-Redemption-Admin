@@ -225,43 +225,79 @@
     });
   }
 
-  // Function to create a blood in and out chart
   function bloodInAndOutChart() {
-    // Fetch "Blood In" and "Blood Out" counts directly from data2 array
-    const bloodInCount = data2.filter(
-      (transaction) => transaction.transaction_type.toLowerCase() === "blood in"
-    ).length;
-    const bloodOutCount = data2.filter(
-      (transaction) =>
-        transaction.transaction_type.toLowerCase() === "blood out"
-    ).length;
+  // Filter transactions by type
+  const bloodInTransactions = data2.filter(
+    (transaction) => transaction.transaction_type.toLowerCase() === "blood in"
+  );
+  const bloodOutTransactions = data2.filter(
+    (transaction) => transaction.transaction_type.toLowerCase() === "blood out"
+  );
 
-    // Create the donut chart using the canvas reference
-    const ctx = bloodInAndOutChartCanvas.getContext("2d");
+  // Prepare labels and data for the chart
+  const bloodInLabels = bloodInTransactions.map((transaction) => new Date(transaction.transaction_date).toLocaleDateString());
+  const bloodOutLabels = bloodOutTransactions.map((transaction) => new Date(transaction.transaction_date).toLocaleDateString());
 
-    new Chart(ctx, {
-      type: "doughnut",
-      data: {
-        labels: ["Blood In", "Blood Out"],
-        datasets: [
-          {
-            data: [bloodInCount, bloodOutCount],
-            backgroundColor: ["#7cb342", "#e53935"], // You can change colors as needed
-            borderWidth: 1,
-          },
-        ],
-      },
-      options: {
-        legend: {
-          display: true,
-          position: "left",
-          labels: {
-            fontColor: "white", // You can set the legend text color
-          },
+  const bloodInAmounts = bloodInTransactions.map((transaction) => transaction.amount);
+  const bloodOutAmounts = bloodOutTransactions.map((transaction) => transaction.amount);
+
+  // Combine labels and data
+  const combinedLabels = [...bloodInLabels, ...bloodOutLabels];
+  const combinedData = [
+    ...bloodInAmounts,
+    ...Array(bloodOutTransactions.length).fill(null) // Padding for missing Blood Out records
+  ];
+  const combinedDataOut = [
+    ...Array(bloodInTransactions.length).fill(null), // Padding for missing Blood In records
+    ...bloodOutAmounts
+  ];
+
+  // Create the bar chart using the canvas reference
+  const ctx = bloodInAndOutChartCanvas.getContext("2d");
+
+  new Chart(ctx, {
+    type: "bar",
+    data: {
+      labels: combinedLabels, // Use transaction dates as labels
+      datasets: [
+        {
+          label: 'Blood In',
+          data: combinedData,
+          backgroundColor: "#7cb342", // Color for Blood In segments
+          stack: 'Stack 0' // Stack for Blood In
         },
+        {
+          label: 'Blood Out',
+          data: combinedDataOut,
+          backgroundColor: "#e53935", // Color for Blood Out segments
+          stack: 'Stack 1' // Stack for Blood Out
+        }
+      ]
+    },
+    options: {
+      scales: {
+        x: {
+          stacked: false // Disable stacking on X-axis
+          // Optional: Adjust the tick configuration if needed
+        },
+        y: {
+          beginAtZero: true,
+          stacked: false // Disable stacking on Y-axis
+        }
       },
-    });
-  }
+      plugins: {
+        legend: {
+          display: true, // Show legend
+          position: "top",
+          labels: {
+            fontColor: "white", // Color for legend text
+          }
+        }
+      }
+    }
+  });
+}
+
 
   // // Variable to store the blood requests chart canvas reference
   // let bloodRequestsChartCanvas;
@@ -504,6 +540,12 @@
                 <a
                   class="nav-link nav-hover text-light"
                   href="/admin/dashboard/reports">Reports</a
+                >
+              </li>
+              <li class="nav-item">
+                <a
+                  class="nav-link nav-hover text-light"
+                  href="/admin/dashboard/newsletter">Newsletter</a
                 >
               </li>
             </ul>

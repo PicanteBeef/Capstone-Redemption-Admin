@@ -320,6 +320,12 @@
                 href="/admin/dashboard/reports">Reports</a
               >
             </li>
+            <li class="nav-item">
+              <a
+                class="nav-link nav-hover text-light"
+                href="/admin/dashboard/newsletter">Newsletter</a
+              >
+            </li>
           </ul>
           <a
             href="/"

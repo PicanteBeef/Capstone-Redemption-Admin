@@ -70,56 +70,146 @@
 
   $: search();
 
-  let firstName = "", lastName = "", donorBirth = "", donorSex = "", donorBlood = "", donorStatus = "", donorEmail = "", donorType = "", donorVolume = "", donorNum = "", donorPulse = "", donorBP = "", donationEvent = "";
+ // Form variables
+  let firstName = '';
+  let lastName = '';
+  let donorBirth = '';
+  let donorSex = '';
+  let donorBlood = '';
+  let donorStatus = '';
+  let donorEmail = '';
+  let donorType = '';
+  let donorBP = '';
+  let donorPulse = '';
+  let formattedContactNum = '';
+  let donorNum = '';
+  let donationEvent = '';
+  let donationVolumeBags = ''; // Dropdown to select the number of bags
 
   const handleSubmit = async () => {
   // Validate the form data (replace this with your validation logic)
-  if (!firstName || !lastName || !donorBirth || !donorSex || !donorBlood || !donorStatus || !donorEmail || !donorType || !donorVolume || !donorNum || !donorPulse || !donorBP) {
-    setNotification({ type: "error", message: "Please fill in all fields." });
-    return;
-  }
+  if (
+      !firstName ||
+      !lastName ||
+      !donorBirth ||
+      !donorSex ||
+      !donorBlood ||
+      !donorStatus ||
+      !donorEmail ||
+      !donorType ||
+      !donationVolumeBags || // Ensure volume is selected
+      !donorNum ||
+      !donorPulse ||
+      !donorBP
+    ) {
+      alert("Please fill in all fields.");
+      return;
+    }
 
   const formattedContactNum = `+63${donorNum}`;
 
   try {
-    // Submit the form data to Supabase
-    const { data, error } = await supabase.from("donors_table").upsert([
-      {
-        first_name: firstName,
-        last_name: lastName,
-        birthdate: donorBirth,
-        sex: donorSex,
-        blood_type: donorBlood,
-        civil_status: donorStatus,
-        contact_num: formattedContactNum,
-        blood_pressure: donorBP,
-        email:donorEmail,
-        donation_type: donorType,
-        donation_volume: donorVolume,
-        donor_pulse: donorPulse,
-        donation_event: donationEvent,
-        donation_date: new Date(),
-      },
-    ]);
-    console.log("info:", firstName, lastName, donorBP, donorBirth, donorBlood, donorEmail, donorNum, donorPulse, donorSex, donorStatus, donorType, donorVolume);
+      // Step 1: Process and log the entries into the donors_table
+      const { data: donorData, error: donorError } = await supabase.from('donors_table').insert([
+        {
+          first_name: firstName,
+          last_name: lastName,
+          birthdate: donorBirth,
+          sex: donorSex,
+          blood_type: donorBlood,
+          civil_status: donorStatus,
+          contact_num: formattedContactNum,
+          blood_pressure: donorBP,
+          email: donorEmail,
+          donation_type: donorType,
+          donation_volume: donationVolumeBags,
+          donor_pulse: donorPulse,
+          donation_event: donationEvent,
+          donation_date: new Date().toISOString(),
+        },
+      ]);
 
-    if (error) {
-      console.error("Error submitting data:", error);
-      setNotification({ type: "error", message: "Error submitting data." });
-    } else {
-      console.log("Data submitted successfully:", data);
-      setNotification({ type: "success", message: "Entry submitted successfully." });
+    console.log("info:", firstName, lastName, donorBP, donorBirth, donorBlood, donorEmail, donorNum, donorPulse, donorSex, donorStatus, donorType, donationVolumeBags);
 
-      // Optionally, you can reload the page or fetch updated data here
+    if (donorError) throw donorError;
+
+    const expiryDate = new Date(); // Blood expiry is 42 days from now
+      expiryDate.setDate(expiryDate.getDate() + 42); // Calculate expiry date
+
+      const { data: transactionData, error: transactionError } = await supabase
+        .from('blood_transactions')
+        .insert([
+          {
+            entry_bloodtype: donorBlood,
+            amount: parseInt(donationVolumeBags), // Convert bags to integer
+            transaction_date: new Date().toISOString(),
+            blood_expiry: expiryDate.toISOString(),
+            transaction_type: 'Blood In',
+            entry_location: donationEvent,
+          },
+        ]);
+
+        if (transactionError) throw transactionError;
+        // Step 3: Increase the appropriate blood stock in the blood_stock table
+        const bloodTypeMap = {
+        "A+": "a_pos",
+        "A-": "a_neg",
+        "B+": "b_pos",
+        "B-": "b_neg",
+        "AB+": "ab_pos",
+        "AB-": "ab_neg",
+        "O+": "o_pos",
+        "O-": "o_neg"
+      };
+
+      const bloodTypeColumn = bloodTypeMap[donorBlood];
+
+      if (!bloodTypeColumn) {
+        alert("Invalid blood type provided.");
+        return;
+      }
+      const { data: stockData, error: stockError } = await supabase
+        .from('blood_stock')
+        .select(bloodTypeColumn)
+        .single();
+
+        if (stockError) {
+        console.error("Error fetching blood stock data:", stockError);
+        alert(`Error fetching blood stock data: ${stockError.message}`);
+        return;
+      }
+
+      const currentCount = stockData && stockData[bloodTypeColumn] !== null ? stockData[bloodTypeColumn] : 0; //Get Current Stock
+      const newTotal = currentCount + parseInt(donationVolumeBags);//Increment Stock
+
+      // Ensure we're updating with a valid number
+      if (isNaN(newTotal) || newTotal < 0) {
+        alert("Invalid new stock value calculated.");
+        return;
+      }
+      // Update the blood stock table
+      const { data: updatedStock, error: updateError } = await supabase
+        .from('blood_stock')
+        .update({ [bloodTypeColumn]: newTotal })
+        .eq('id', 1); // Assuming there is only 1 row in the table for blood stocks
+
+        if (updateError) {
+        console.error("Error updating blood stock:", updateError);
+        alert(`Error updating blood stock: ${updateError.message}`);
+        return;
+      }
+
+      alert("Donation logged and stock updated successfully!");
+
+      // Optionally, reload the page or reset the form
       setTimeout(() => {
         location.reload();
       }, 2000);
+    } catch (error) {
+      console.error("Error processing donation:", error);
+      alert("Error processing donation. Please check the console for more details.");
     }
-  } catch (error) {
-    console.error("Error submitting data:", error);
-    setNotification({ type: "error", message: "Error submitting data." });
-  }
-};
+  };
 </script>
 
 <head>
@@ -372,6 +462,12 @@
                 href="/admin/dashboard/reports">Reports</a
               >
             </li>
+            <li class="nav-item">
+              <a
+                class="nav-link nav-hover text-light"
+                href="/admin/dashboard/newsletter">Newsletter</a
+              >
+            </li>
           </ul>
           <a
             href="/"
@@ -489,11 +585,13 @@
                       </select>
                     </div>
                     <div class="col-md-6">
-                      <label for="donorVolume" class="form-label">Volume of Donated Blood<span class="text-danger">*</span></label>
-                      <div class="input-group">
-                        <input type="text" inputmode="numeric" class="form-control" id="donorVolume" placeholder="Volume" bind:value={donorVolume}  required />
-                        <button class="btn btn-outline-secondary" type="button" id="button-addon1" disabled>ml</button>
-                      </div>
+                      <label for="donationVolumeBags" class="form-label">Volume of Donated Blood<span class="text-danger">*</span></label>
+                      <select id="donationVolume" bind:value={donationVolumeBags}>
+                        <option value="1">1 Bag (450 mL)</option>
+                        <option value="2">2 Bags (900 mL)</option>
+                        <option value="3">3 Bags (1350 mL)</option>
+                        <!-- Add more options as needed -->
+                      </select>
                     </div>
                   </div>
                   

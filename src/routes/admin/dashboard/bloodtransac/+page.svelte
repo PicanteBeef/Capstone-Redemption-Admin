@@ -120,22 +120,48 @@
 
   // Search Visible Table  
   const search = () => {
-    if (searchTerm.trim() === '') {
-      data = originalData;
-      return;
-    }
+  if (searchTerm.trim() === "") {
+    // Reset the data to original when the search term is empty
+    data = originalData;
+    return;
+  }
 
-    const filteredData = originalData.filter(item => {
-      return (
-        item.entry_bloodtype.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.transaction_date.toLowerCase().includes(searchTerm.toLowerCase())
-        // Add more fields as needed for your search
-      );
-    });
+  const searchTermLower = searchTerm.toLowerCase();
 
-    data = filteredData;
-  };
-  $: search();
+  // Filter the data based on specific fields
+  const filteredData = originalData.filter((item) => {
+    // Check specific columns for matching search term, with null checks
+    const bloodTypeMatch = item.entry_bloodtype?.toLowerCase().includes(searchTermLower) ?? false;
+    const transactionTypeMatch = item.transaction_type?.toLowerCase().includes(searchTermLower) ?? false;
+    const amountMatch = item.amount?.toString().toLowerCase().includes(searchTermLower) ?? false;
+
+    // Format dates to match the search term format, with null checks
+    const formattedTransactionDate = item.transaction_date ? moment(item.transaction_date).format("L • hh:mma").toLowerCase() : "";
+    const formattedExpiryDate = item.blood_expiry ? moment(item.blood_expiry).format("L • hh:mma").toLowerCase() : "";
+
+    const transactionDateMatch = formattedTransactionDate.includes(searchTermLower);
+    const expiryDateMatch = formattedExpiryDate.includes(searchTermLower);
+
+    // Add other field checks as needed, with null checks
+    const locationMatch = item.entry_location?.toLowerCase().includes(searchTermLower) ?? false;
+
+    // Return true if any of the fields match the search term
+    return (
+      bloodTypeMatch ||
+      transactionTypeMatch ||
+      amountMatch ||
+      transactionDateMatch ||
+      expiryDateMatch ||
+      locationMatch
+    );
+  });
+
+  // Update the data to show only the filtered results
+  data = filteredData;
+};
+
+// Recompute the search results whenever the search term changes
+$: search();
   </script>
   
   <head>
@@ -305,6 +331,12 @@
                   href="/admin/dashboard/reports">Reports</a
                 >
               </li>
+              <li class="nav-item">
+                <a
+                  class="nav-link nav-hover text-light"
+                  href="/admin/dashboard/newsletter">Newsletter</a
+                >
+              </li>
             </ul>
             <a
               href="/"
@@ -345,6 +377,7 @@
                       <th on:click={() => sortTable("amount")}>Amount{sortColumn === "amount"? sortDirection === 1? " ▲": " ▼": ""}</th>
                       <th on:click={() => sortTable("transaction_date")}>Transaction Date{sortColumn === "transaction_date"? sortDirection === 1? " ▲": " ▼": ""}</th>
                       <th on:click={() => sortTable("transaction_type")}>Transaction Type{sortColumn === "transaction_type"? sortDirection === 1? " ▲": " ▼": ""}</th>
+                      <th on:click={() => sortTable("entry_location")}>Location{sortColumn === "entry_location"? sortDirection === 1? " ▲": " ▼": ""}</th>
                     </tr>
                   </thead>
                   <tfoot>
@@ -354,6 +387,7 @@
                         <th>Amount</th>
                         <th>Transaction Date</th>
                         <th>Transaction Type</th>
+                        <th>Location</th>
                     </tr>
                   </tfoot>
                   <tbody>
@@ -364,6 +398,7 @@
                         <td>{item.amount}</td>
                         <td>{moment(item.transaction_date).format("L • hh:mma")}</td>
                         <td>{item.transaction_type}</td>
+                        <td>{item.entry_location}</td>
                       </tr>
                     {/each}
                   </tbody>

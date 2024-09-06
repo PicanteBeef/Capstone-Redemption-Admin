@@ -9,6 +9,7 @@
     bloodType: "",
     amount: 0,
     entryDate: "",
+    entryLocation: '',
   };
 
   let data = [];
@@ -30,84 +31,101 @@
     data = data.sort((a, b) => (a[column] - b[column]) * sortOrder);
   }
 
-  async function handleSubmit(event) {
-    console.log(formData);
-    event.preventDefault();
+  let selectedLocation = '';
+  let showCustomLocation = false;
 
-    const bloodType = formData.bloodType;
-    const amount = parseInt(formData.amount, 10);
-    const entry_date = new Date(formData.entryDate);
-    const entryExpiry = new Date(entry_date);
-    entryExpiry.setDate(entryExpiry.getDate() + 42);
-
-    const { data, error } = await supabase
-      .from("blood_stock")
-      .select(bloodType.toLowerCase());
-
-    if (error) {
-      console.error("Error fetching data from Supabase:", error.message);
-      return;
-    }
-
-    const currentCount = data[0]?.[bloodType.toLowerCase()] || 0;
-    const newTotal = currentCount + amount;
-    console.log("dataZ", data);
-
-    console.log("Blood Type:", bloodType);
-    console.log("Current Count:", currentCount);
-    console.log("New Total:", newTotal);
-
-    const { updateError } = await supabase
-      .from("blood_stock")
-      .update({ [bloodType.toLowerCase()]: newTotal })
-      .eq("id", 1);
-
-    if (updateError) {
-      console.error("Error updating data in Supabase:", updateError.message);
-      console.log(
-        "tite ni liemel joshua dumangon lacanilao ng san jose del monte bulacan"
-      );
-      return;
-    }
-    console.log("Blood Stock Updated Successfully.");
-
-    const bloodValuePair = {
-      a_pos: "A+",
-      a_neg: "A-",
-      b_pos: "B+",
-      b_neg: "B-",
-      ab_pos: "AB+",
-      ab_neg: "AB-",
-      o_pos: "O+",
-      o_neg: "O-",
-    };
-    console.log("Blood Type:", bloodValuePair[bloodType]);
-    console.log("Amount:", amount);
-    console.log("Date:", entry_date);
-    console.log("Expiry:", entryExpiry);
-
-    const { insertErrorInventory } = await supabase
-      .from("blood_transactions")
-      .insert([
-        {
-          entry_bloodtype: bloodValuePair[bloodType],
-          amount: amount,
-          transaction_date: entry_date,
-          blood_expiry: entryExpiry,
-          transaction_type: "Blood In",
-        },
-      ]);
-
-    if (insertErrorInventory) {
-      console.error(
-        'Error inserting data into "blood_inventory":',
-        insertErrorInventory.message
-      );
-      return;
-    }
-    location.reload();
-    console.log("Added an entry to the inventory.");
+  function handleLocationChange(event) {
+  selectedLocation = event.target.value;
+  if (selectedLocation === 'others') {
+    showCustomLocation = true;
+  } else {
+    showCustomLocation = false;
+    formData.entryLocation = selectedLocation; // Set selected location
   }
+}
+
+  async function handleSubmit(event) {
+  console.log(formData);
+  event.preventDefault();
+
+  const bloodType = formData.bloodType;
+  const amount = parseInt(formData.amount, 10);
+  const entry_date = new Date(formData.entryDate);
+  const entryExpiry = new Date(entry_date);
+  entryExpiry.setDate(entryExpiry.getDate() + 42);
+  const entryLocation = formData.entryLocation; // This will now include custom location if provided
+
+  // Fetch current blood stock for the specified blood type
+  const { data, error } = await supabase
+    .from("blood_stock")
+    .select(bloodType.toLowerCase());
+
+  if (error) {
+    console.error("Error fetching data from Supabase:", error.message);
+    return;
+  }
+
+  const currentCount = data[0]?.[bloodType.toLowerCase()] || 0;
+  const newTotal = currentCount + amount;
+
+  console.log("Blood Type:", bloodType);
+  console.log("Current Count:", currentCount);
+  console.log("New Total:", newTotal);
+
+  // Update the blood stock
+  const { updateError } = await supabase
+    .from("blood_stock")
+    .update({ [bloodType.toLowerCase()]: newTotal })
+    .eq("id", 1);
+
+  if (updateError) {
+    console.error("Error updating data in Supabase:", updateError.message);
+    return;
+  }
+  console.log("Blood Stock Updated Successfully.");
+
+  const bloodValuePair = {
+    a_pos: "A+",
+    a_neg: "A-",
+    b_pos: "B+",
+    b_neg: "B-",
+    ab_pos: "AB+",
+    ab_neg: "AB-",
+    o_pos: "O+",
+    o_neg: "O-",
+  };
+
+  console.log("Blood Type:", bloodValuePair[bloodType]);
+  console.log("Amount:", amount);
+  console.log("Date:", entry_date);
+  console.log("Expiry:", entryExpiry);
+  console.log("Location:", entryLocation); // Log the location
+
+  // Insert new transaction into the blood_transactions table
+  const { insertErrorInventory } = await supabase
+    .from("blood_transactions")
+    .insert([
+      {
+        entry_bloodtype: bloodValuePair[bloodType],
+        amount: amount,
+        transaction_date: entry_date,
+        blood_expiry: entryExpiry,
+        transaction_type: "Blood In",
+        entry_location: entryLocation, // Insert the location into the database
+      },
+    ]);
+
+  if (insertErrorInventory) {
+    console.error(
+      'Error inserting data into "blood_inventory":',
+      insertErrorInventory.message
+    );
+    return;
+  }
+
+  location.reload();
+  console.log("Added an entry to the inventory.");
+}
 
   // Delete Entry From Blood Inventory
   async function deleteOne(itemToDelete) {
@@ -168,29 +186,48 @@
   };
 
   const search = () => {
-    if (searchTerm.trim() === "") {
-      data = originalData;
-      return;
-    }
+  if (searchTerm.trim() === "") {
+    // Reset the data to original when the search term is empty
+    data = originalData;
+    return;
+  }
 
-    const searchTermLower = searchTerm.toLowerCase();
+  const searchTermLower = searchTerm.toLowerCase();
 
-    const filteredData = originalData.filter((item) =>
-      Object.values(item).some((value) => {
-        if (typeof value === "string") {
-          return value.toLowerCase().includes(searchTermLower);
-        } else if (value instanceof Date) {
-          // Format the date to match the search term format
-          const formattedDate = moment(value).format("L • hh:mma");
-          return formattedDate.toLowerCase().includes(searchTermLower);
-        }
-        return false;
-      })
+  // Filter the data based on specific fields
+  const filteredData = originalData.filter((item) => {
+    // Check specific columns for matching search term, with null checks
+    const bloodTypeMatch = item.entry_bloodtype?.toLowerCase().includes(searchTermLower) ?? false;
+    const transactionTypeMatch = item.transaction_type?.toLowerCase().includes(searchTermLower) ?? false;
+    const amountMatch = item.amount?.toString().toLowerCase().includes(searchTermLower) ?? false;
+
+    // Format dates to match the search term format, with null checks
+    const formattedTransactionDate = item.transaction_date ? moment(item.transaction_date).format("L • hh:mma").toLowerCase() : "";
+    const formattedExpiryDate = item.blood_expiry ? moment(item.blood_expiry).format("L • hh:mma").toLowerCase() : "";
+
+    const transactionDateMatch = formattedTransactionDate.includes(searchTermLower);
+    const expiryDateMatch = formattedExpiryDate.includes(searchTermLower);
+
+    // Add other field checks as needed, with null checks
+    const locationMatch = item.entry_location?.toLowerCase().includes(searchTermLower) ?? false;
+
+    // Return true if any of the fields match the search term
+    return (
+      bloodTypeMatch ||
+      transactionTypeMatch ||
+      amountMatch ||
+      transactionDateMatch ||
+      expiryDateMatch ||
+      locationMatch
     );
+  });
 
-    data = filteredData;
-  };
-  $: search();
+  // Update the data to show only the filtered results
+  data = filteredData;
+};
+
+// Recompute the search results whenever the search term changes
+$: search();
 </script>
 
 <head>
@@ -366,6 +403,12 @@
                 href="/admin/dashboard/reports">Reports</a
               >
             </li>
+            <li class="nav-item">
+              <a
+                class="nav-link nav-hover text-light"
+                href="/admin/dashboard/newsletter">Newsletter</a
+              >
+            </li>
           </ul>
           <a
             href="/"
@@ -436,6 +479,38 @@
                     />
                   </div>
 
+                  <!-- Entry Location Field -->
+          <div class="col-12 mt-3">
+            <label for="entryLocation" class="form-label">Entry Location:</label>
+            <div class="input-group">
+              <select
+                class="form-control"
+                id="entryLocationSelect"
+                bind:value={selectedLocation}
+                on:change={handleLocationChange}
+                required
+              >
+                <option value="" disabled>Select a location</option>
+                <option value="Our Lady of Lourdes">Our Lady of Lourdes</option>
+                <option value="Red Cross Malabon">Red Cross Malabon</option>
+                <option value="Philippine Heart Center East Avenue">Philippine Heart Center East Avenue</option>
+                <option value="Red Cross Marikina">Red Cross Marikina</option>
+                <option value="others">Others</option>
+              </select>
+              {#if showCustomLocation}
+                <input
+                  type="text"
+                  class="form-control"
+                  id="customLocation"
+                  bind:value={formData.entryLocation}
+                  placeholder="Enter custom location"
+                />
+              {/if}
+            </div>
+          </div>
+
+                  
+
                   <div class="mt-2">
                     <button class="btn btn-danger" type="submit">Submit</button>
                   </div>
@@ -459,7 +534,7 @@
                 placeholder="Search..."
               />
             </div>
-            <br>
+            <br />
             <div class="table-responsive">
               <table
                 class="table table-bordered rounded"
@@ -469,41 +544,24 @@
               >
                 <thead>
                   <tr class="clearfix">
-                    <th on:click={() => sortTable("id")}
-                      >Serial ID{sortColumn === "id"
-                        ? sortDirection === 1
-                          ? " ▲"
-                          : " ▼"
-                        : ""}</th
-                    >
-                    <th on:click={() => sortTable("entry_bloodtype")}
-                      >Blood Type{sortColumn === "entry_bloodtype"
-                        ? sortDirection === 1
-                          ? " ▲"
-                          : " ▼"
-                        : ""}</th
-                    >
-                    <th on:click={() => sortTable("amount")}
-                      >Amount{sortColumn === "amount"
-                        ? sortDirection === 1
-                          ? " ▲"
-                          : " ▼"
-                        : ""}</th
-                    >
-                    <th on:click={() => sortTable("blood_expiry")}
-                      >Expiration{sortColumn === "blood_expiry"
-                        ? sortDirection === 1
-                          ? " ▲"
-                          : " ▼"
-                        : ""}</th
-                    >
-                    <th on:click={() => sortTable("transaction_date")}
-                      >Date Entry{sortColumn === "transaction_date"
-                        ? sortDirection === 1
-                          ? " ▲"
-                          : " ▼"
-                        : ""}</th
-                    >
+                    <th on:click={() => sortTable("id")}>
+                      Serial ID{sortColumn === "id" ? (sortDirection === 1 ? " ▲" : " ▼") : ""}
+                    </th>
+                    <th on:click={() => sortTable("entry_bloodtype")}>
+                      Blood Type{sortColumn === "entry_bloodtype" ? (sortDirection === 1 ? " ▲" : " ▼") : ""}
+                    </th>
+                    <th on:click={() => sortTable("amount")}>
+                      Amount{sortColumn === "amount" ? (sortDirection === 1 ? " ▲" : " ▼") : ""}
+                    </th>
+                    <th on:click={() => sortTable("blood_expiry")}>
+                      Expiration{sortColumn === "blood_expiry" ? (sortDirection === 1 ? " ▲" : " ▼") : ""}
+                    </th>
+                    <th on:click={() => sortTable("transaction_date")}>
+                      Date Entry{sortColumn === "transaction_date" ? (sortDirection === 1 ? " ▲" : " ▼") : ""}
+                    </th>
+                    <th on:click={() => sortTable("entry_location")}>
+                      Entry Location{sortColumn === "entry_location" ? (sortDirection === 1 ? " ▲" : " ▼") : ""}
+                    </th>
                   </tr>
                 </thead>
                 <tfoot>
@@ -513,6 +571,7 @@
                     <th>Amount</th>
                     <th>Expiration</th>
                     <th>Date Entry</th>
+                    <th>Entry Location</th>
                   </tr>
                 </tfoot>
                 <tbody>
@@ -522,11 +581,8 @@
                       <td>{item.entry_bloodtype}</td>
                       <td>{item.amount} • {item.amount * 450} CC</td>
                       <td>{moment(item.blood_expiry).format("L • hh:mma")}</td>
-                      <td
-                        >{moment(item.transaction_date)
-                          .utc()
-                          .format("L • hh:mma")}</td
-                      >
+                      <td>{moment(item.transaction_date).utc().format("L • hh:mma")}</td>
+                      <td>{item.entry_location}</td> <!-- New field added here -->
                     </tr>
                   {/each}
                 </tbody>
