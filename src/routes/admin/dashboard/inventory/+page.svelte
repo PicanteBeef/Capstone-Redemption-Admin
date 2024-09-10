@@ -150,7 +150,8 @@
     const { data: records, error } = await supabase
       .from("blood_transactions")
       .select("*")
-      .neq("transaction_type", "Blood Out");
+      .neq("transaction_type", "Blood Out")
+      .order("transaction_date", { ascending: false })
 
     if (error) {
       console.error("Error fetching data from Supabase:", error);
@@ -591,13 +592,6 @@ $: search();
           </div>
         </div>
       </div>
-      <footer class="sticky-footer">
-        <div class="container">
-          <div class="text-center text-danger">
-            <small>For Capstone use only.</small>
-          </div>
-        </div>
-      </footer>
     </div>
   </main>
 </body>

@@ -16,6 +16,7 @@
     const { data: records, error } = await supabase
       .from("donors_table")
       .select("*")
+      .order("donation_date", { ascending: false })
 
     if (error) {
       console.error("Error fetching data from Supabase:", error);
@@ -585,7 +586,7 @@
                       </select>
                     </div>
                     <div class="col-md-6">
-                      <label for="donationVolumeBags" class="form-label">Volume of Donated Blood<span class="text-danger">*</span></label>
+                      <label for="donationVolumeBags" class="form-label">Volume of Donated Blood<span class="text-danger">*</span></label><br>
                       <select id="donationVolume" bind:value={donationVolumeBags}>
                         <option value="1">1 Bag (450 mL)</option>
                         <option value="2">2 Bags (900 mL)</option>
@@ -702,16 +703,6 @@
             {notification.message}
           </div>
         {/if}
-        <!-- end of notifications-->
-
-        <!--footer-->
-        <footer class="sticky-footer">
-          <div class="container">
-            <div class="text-center text-danger">
-              <small>For Capstone use only.</small>
-            </div>
-          </div>
-        </footer>
       </div>
     </div>
   </main>

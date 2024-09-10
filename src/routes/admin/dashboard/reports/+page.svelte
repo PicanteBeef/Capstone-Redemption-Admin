@@ -225,72 +225,102 @@
     });
   }
 
-  function bloodInAndOutChart() {
-  // Filter transactions by type
-  const bloodInTransactions = data2.filter(
-    (transaction) => transaction.transaction_type.toLowerCase() === "blood in"
-  );
-  const bloodOutTransactions = data2.filter(
-    (transaction) => transaction.transaction_type.toLowerCase() === "blood out"
-  );
+let bloodTransactionsData = [];
+let selectedLocationForBlood = 'All';
+let locationsForBlood = [];
+let bloodChart = null;
 
-  // Prepare labels and data for the chart
-  const bloodInLabels = bloodInTransactions.map((transaction) => new Date(transaction.transaction_date).toLocaleDateString());
-  const bloodOutLabels = bloodOutTransactions.map((transaction) => new Date(transaction.transaction_date).toLocaleDateString());
+async function fetchBloodTransactionsData() {
+  try {
+    const { data, error } = await supabase
+      .from('blood_transactions')
+      .select('amount, transaction_type, transaction_date, entry_location');
+    
+    if (error) {
+      throw error;
+    }
+    
+    return data;
+  } catch (error) {
+    console.error('Error fetching blood transactions data:', error);
+    return [];
+  }
+}
 
-  const bloodInAmounts = bloodInTransactions.map((transaction) => transaction.amount);
-  const bloodOutAmounts = bloodOutTransactions.map((transaction) => transaction.amount);
+function updateBloodChart() {
+  const ctx = document.getElementById('bloodChartCanvas').getContext('2d');
 
-  // Combine labels and data
-  const combinedLabels = [...bloodInLabels, ...bloodOutLabels];
-  const combinedData = [
-    ...bloodInAmounts,
-    ...Array(bloodOutTransactions.length).fill(null) // Padding for missing Blood Out records
-  ];
-  const combinedDataOut = [
-    ...Array(bloodInTransactions.length).fill(null), // Padding for missing Blood In records
-    ...bloodOutAmounts
-  ];
+  const filteredBloodData = selectedLocationForBlood === 'All'
+    ? bloodTransactionsData
+    : bloodTransactionsData.filter(item => item.entry_location === selectedLocationForBlood);
 
-  // Create the bar chart using the canvas reference
-  const ctx = bloodInAndOutChartCanvas.getContext("2d");
+ // Format and sort dates
+ const dateSet = [...new Set(filteredBloodData.map(item => moment(item.transaction_date).format('YYYY-MM-DD')))];
+  const sortedDates = dateSet.sort((a, b) => moment(a).isAfter(moment(b)) ? 1 : -1);
 
-  new Chart(ctx, {
-    type: "bar",
+  const bloodInData = [];
+  const bloodOutData = [];
+
+  sortedDates.forEach(date => {
+    const transactions = filteredBloodData.filter(item => moment(item.transaction_date).format('YYYY-MM-DD') === date);
+    
+    bloodInData.push({
+      x: date,
+      y: transactions.filter(item => item.transaction_type.toLowerCase() === 'blood in').reduce((sum, item) => sum + item.amount, 0),
+    });
+
+    bloodOutData.push({
+      x: date,
+      y: transactions.filter(item => item.transaction_type.toLowerCase() === 'blood out').reduce((sum, item) => sum + item.amount, 0),
+    });
+  });
+
+  if (bloodChart) {
+    bloodChart.destroy(); // Destroy existing chart to prevent overlap
+  }
+
+  bloodChart = new Chart(ctx, {
+    type: 'bar',
     data: {
-      labels: combinedLabels, // Use transaction dates as labels
+      labels: sortedDates,
       datasets: [
         {
           label: 'Blood In',
-          data: combinedData,
-          backgroundColor: "#7cb342", // Color for Blood In segments
-          stack: 'Stack 0' // Stack for Blood In
+          data: bloodInData,
+          backgroundColor: "#7cb342",
+          borderWidth: 0
         },
         {
           label: 'Blood Out',
-          data: combinedDataOut,
-          backgroundColor: "#e53935", // Color for Blood Out segments
-          stack: 'Stack 1' // Stack for Blood Out
+          data: bloodOutData,
+          backgroundColor: "#e53935",
+          borderWidth: 0
         }
       ]
     },
     options: {
       scales: {
         x: {
-          stacked: false // Disable stacking on X-axis
-          // Optional: Adjust the tick configuration if needed
+          stacked: true,
+          barThickness: 20,
         },
         y: {
           beginAtZero: true,
-          stacked: false // Disable stacking on Y-axis
+          stacked: true
         }
       },
       plugins: {
         legend: {
-          display: true, // Show legend
-          position: "top",
-          labels: {
-            fontColor: "white", // Color for legend text
+          display: true,
+          position: 'top'
+        },
+        tooltip: {
+          callbacks: {
+            label: function (context) {
+              const label = context.dataset.label || '';
+              const amount = context.raw.y;
+              return `${label}: ${amount}`;
+            }
           }
         }
       }
@@ -298,66 +328,17 @@
   });
 }
 
+onMount(async () => {
+  bloodTransactionsData = await fetchBloodTransactionsData();
+  locationsForBlood = [...new Set(bloodTransactionsData.map(item => item.entry_location)), 'All'];
+  updateBloodChart();
+});
 
-  // // Variable to store the blood requests chart canvas reference
-  // let bloodRequestsChartCanvas;
+function transactionLocationChange(event) {
+  selectedLocationForBlood = event.target.value;
+  updateBloodChart();
+}
 
-  // // Function to create a grouped bar chart
-  // function groupedBarChart() {
-  //   const ctx = bloodRequestsChartCanvas.getContext("2d");
-
-  //   // Extract data for the chart (adjust this based on your data structure)
-  //   const labels = data3.map((record) => record.request_urgency); // Use appropriate field for x-axis labels
-
-  //   // Separate data into different arrays based on urgency level
-  //   const lowData = data3.map((record) =>
-  //     record.request_urgency === "low" ? record.amount : 0
-  //   );
-  //   const midData = data3.map((record) =>
-  //     record.request_urgency === "mid" ? record.amount : 0
-  //   );
-  //   const highData = data3.map((record) =>
-  //     record.request_urgency === "high" ? record.amount : 0
-  //   );
-  //   console.log("Low Data:", lowData);
-  //   console.log("Mid Data:", midData);
-  //   console.log("High Data:", highData);
-
-  //   const datasets = [
-  //     {
-  //       label: "Low Urgency",
-  //       data: lowData,
-  //       backgroundColor: "#4CAF50", // Green color for low urgency
-  //       borderColor: "#4CAF50",
-  //       borderWidth: 1,
-  //     },
-  //     {
-  //       label: "Mid Urgency",
-  //       data: midData,
-  //       backgroundColor: "#FFC107", // Yellow color for mid urgency
-  //       borderColor: "#FFC107",
-  //       borderWidth: 1,
-  //     },
-  //     {
-  //       label: "High Urgency",
-  //       data: highData,
-  //       backgroundColor: "#FF5722", // Red color for high urgency
-  //       borderColor: "#FF5722",
-  //       borderWidth: 1,
-  //     },
-  //   ];
-
-  //   new Chart(ctx, {
-  //     type: "bar",
-  //     data: {
-  //       labels,
-  //       datasets,
-  //     },
-  //     options: {
-  //       // Customize options as needed
-  //     },
-  //   });
-  // }
   onMount(async () => {
     const { data: bloodRequestsData, error } = await supabase
       .from("blood_requests")
@@ -408,6 +389,121 @@
       },
     });
   });
+
+  let summaryData = [];
+  let selectedLocation = 'All';
+  let locations = [];
+  let chart = null;
+
+  // Fetch summary data
+  async function fetchSummaryData() {
+    try {
+      const { data, error } = await supabase
+        .from('donors_table')
+        .select('blood_type, sex, donation_volume, donation_event');
+      
+      if (error) {
+        throw error;
+      }
+      
+      return data.sort((a, b) => a.blood_type.localeCompare(b.blood_type));
+    } catch (error) {
+      console.error('Error fetching summary data:', error);
+      return [];
+    }
+  }
+
+  // Create or update chart
+  function updateChart() {
+  const ctx = document.getElementById('summaryChart').getContext('2d');
+
+  const filteredData = selectedLocation === 'All' 
+    ? summaryData 
+    : summaryData.filter(item => item.donation_event === selectedLocation);
+
+  const bloodTypes = [...new Set(filteredData.map(item => item.blood_type))];
+  const sexTypes = ['Male', 'Female'];
+
+  // Prepare dataset for chart
+  const datasets = sexTypes.map(sex => ({
+    label: sex,  // Ensure labels are properly set for each dataset
+    data: bloodTypes.map(bloodType => {
+      return filteredData
+        .filter(item => item.blood_type === bloodType && item.sex === sex)
+        .reduce((sum, item) => sum + item.donation_volume, 0);
+    }),
+    backgroundColor: sex === 'Male' ? '#d32f2f' : '#b0bec5', // Male and Female colors
+    borderColor: '#000',
+  }));
+
+  if (chart) {
+    chart.destroy(); // Destroy the existing chart instance to prevent overlapping
+  }
+
+  chart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: bloodTypes,  // Ensure labels are set correctly for the x-axis
+      datasets: datasets
+    },
+    options: {
+      responsive: true,
+      scales: {
+        x: {
+          beginAtZero: true,
+          title: {
+            display: true,
+            text: 'Blood Type'
+          }
+        },
+        y: {
+          beginAtZero: true,
+          title: {
+            display: true,
+            text: 'Donation Volume'
+          }
+        }
+      },
+      plugins: {
+        legend: {
+          display: true,  // Ensure the legend is enabled
+          position: 'top', // Position the legend at the top
+          labels: {
+            color: '#000',  // Set legend label color
+            font: {
+              size: 12 // Adjust font size if needed
+            }
+          }
+        },
+        tooltip: {
+          callbacks: {
+            title: function(tooltipItems) {
+              const item = tooltipItems[0];
+              const bloodType = item.label;
+              const gender = item.dataset.label;
+              return `${bloodType} (${gender})`;
+            },
+            label: function(tooltipItem) {
+              return `Volume: ${tooltipItem.raw}`;
+            }
+          }
+        }
+      }
+    }
+  });
+}
+
+  onMount(async () => {
+    summaryData = await fetchSummaryData();
+    locations = [...new Set(summaryData.map(item => item.donation_event)), 'All'];
+    updateChart();
+  });
+
+  // Handle location change
+  function handleLocationChange(event) {
+    selectedLocation = event.target.value;
+    updateChart();
+  }
 </script>
 
 <html lang="en">
@@ -488,7 +584,7 @@
         <div class="container-fluid">
           <a
             class="navbar-brand"
-            href="#home"
+            href="/admin/dashboard/"
             style="font-family:system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;font-weight: bold;"
             >B.D.M.S <i class="fa-solid fa-droplet" /></a
           >
@@ -606,26 +702,20 @@
 
             <div class="row justify-content-center mt-4 mb-4">
               <!-- Recent Transactions Card -->
-              <div
-                class="card mb-3 col mx-1"
-                style="width: 500px; height: 500px;"
-              >
+              <div class="card mb-3 col mx-1" style="width: 500px; height: 500px;">
                 <div class="card-header text-danger">
-                  <i class="fa fa-bar-chart" /> Recent Transactions
+                  <i class="fa fa-bar-chart" /> Recent Blood Transactions
                 </div>
+                <select on:change={transactionLocationChange}>
+                  {#each locationsForBlood as location}
+                    <option value={location}>{location}</option>
+                  {/each}
+                </select>
                 <div class="card-body" style="height: 400px;">
                   <div class="row">
                     <div class="chart-transactions" style="height: 350px;">
-                      <!-- Donut chart for blood transactions -->
-                      <canvas
-                        bind:this={bloodInAndOutChartCanvas}
-                        id="myBloodInAndOutChart"
-                      ></canvas>
-                      <a
-                        class="btn btn-danger"
-                        href="/admin/dashboard/bloodtransac"
-                        >View More <i class="fa fa-angle-right" /></a
-                      >
+                      <canvas id="bloodChartCanvas"></canvas>
+                      <a class="btn btn-danger" href="/admin/dashboard/bloodtransac">View More <i class="fa fa-angle-right" /></a>
                     </div>
                   </div>
                 </div>
@@ -653,6 +743,40 @@
                   </div>
                 </div>
               </div>
+            </div>
+
+            <div class="row justify-content-center mt-4 mb-4">
+              <!-- Donation Summary Card -->
+              <div
+                class="card mb-3 col mx-1"
+                style="width: 500px; height: 500px;"
+              >
+                <div class="card-header text-danger">
+                  <i class="fa fa-bar-chart" /> Donation Summary
+                </div>
+                <select on:change={handleLocationChange}>
+                  {#each locations as location}
+                    <option value={location}>{location}</option>
+                  {/each}
+                </select>
+                <div class="card-body" style="height: 400px;">
+                  <div class="row">
+                    <div class="chart-transactions" style="height: 350px;">
+                      <!-- Donut chart for blood transactions -->
+                      <canvas
+                        id="summaryChart"
+                      ></canvas>
+                      <a
+                        class="btn btn-danger"
+                        href="/admin/dashboard/donations"
+                        >View More <i class="fa fa-angle-right" /></a
+                      >
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+      
             </div>
           </div>
         </div>
@@ -692,13 +816,6 @@
 
   <!-- /.container-fluid-->
   <!-- /.content-wrapper-->
-  <footer class="sticky-footer">
-    <div class="container">
-      <div class="text-center text-danger">
-        <small>For Capstone use only.</small>
-      </div>
-    </div>
-  </footer>
 </html>
 
 <style>

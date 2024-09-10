@@ -359,7 +359,7 @@
         <div class="container-fluid">
           <a
             class="navbar-brand"
-            href="#home"
+            href="/admin/dashboard"
             style="font-family:system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;font-weight: bold;"
             >B.D.M.S <i class="fa-solid fa-droplet" /></a
           >
@@ -571,15 +571,6 @@
           </div>
   
         </div>
-        <!-- /.container-fluid-->
-        <!-- /.content-wrapper-->
-        <footer class="sticky-footer">
-          <div class="container">
-            <div class="text-center text-danger">
-              <small>For Capstone use only.</small>
-            </div>
-          </div>
-        </footer>
         <!-- Scroll to Top Button-->
         <a class="scroll-to-top rounded" href="#page-top">
           <i class="fa fa-angle-up" />
