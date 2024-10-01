@@ -1,11 +1,9 @@
-<!-- Blood requests lands here. -->
-
 <script>
     import { createClient } from 'contentful-management';
     
     // Initialize Contentful Client
     const contentfulClient = createClient({
-      accessToken: 'CFPAT-X2qxIvmmKoPGPXbVsyNkbp5JCvUn2SxC-rqc_F84JSg', // Replace with your Content Management API Token
+      accessToken: import.meta.env.VITE_CONTENTFUL_MANAGEMENT_TOKEN, // Replace with your Content Management API Token
     });
     
     // Form data state
@@ -30,7 +28,7 @@ async function handleImageUpload(event) {
     try {
         console.log('Selected file:', file); // Debug: Log the file to check its details
 
-        const space = await contentfulClient.getSpace('g4027mkrwnn3'); // Replace with your Contentful Space ID
+        const space = await contentfulClient.getSpace(import.meta.env.VITE_CONTENTFUL_SPACE_ID); // Replace with your Contentful Space ID
         const environment = await space.getEnvironment('master');
 
         // 1. Upload the image to Contentful
@@ -322,6 +320,12 @@ async function handleImageUpload(event) {
                 <a
                   class="nav-link nav-hover text-light"
                   href="/admin/dashboard/newsletter">Newsletter</a
+                >
+              </li>
+              <li class="nav-item">
+                <a
+                  class="nav-link nav-hover text-light"
+                  href="/admin/dashboard/appointments">Appointments</a
                 >
               </li>
             </ul>

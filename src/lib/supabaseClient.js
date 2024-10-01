@@ -1,8 +1,13 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = 'https://dbvtotutjqxbbrzbewxs.supabase.co';
-const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRidnRvdHV0anF4YmJyemJld3hzIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTY5Mzc0MjkzNywiZXhwIjoyMDA5MzE4OTM3fQ.AAO9LOlhDHRO_OBIH-VakORFKt7gRQS8FrV7X81yb0I';
+// Admin DB
+const supabaseAdminUrl = import.meta.env.VITE_SUPABASE_URL_ADMIN;
+const supabaseAdminKey = import.meta.env.VITE_SUPABASE_ANON_KEY_ADMIN;
 
-const supabase = createClient(supabaseUrl, supabaseKey);
+export const supabase = createClient(supabaseAdminUrl, supabaseAdminKey);
 
-export default supabase;
+// Public DB
+const supabasePublicUrl = import.meta.env.VITE_SUPABASE_URL_PUBLIC;
+const supabasePublicKey = import.meta.env.VITE_SUPABASE_ANON_KEY_PUBLIC;
+
+export const supabasePublic = createClient(supabasePublicUrl, supabasePublicKey);

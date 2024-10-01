@@ -1,7 +1,7 @@
 <script>
   import { onMount } from "svelte";
   import { goto } from "$app/navigation";
-  import supabase from "/src/lib/supabaseClient.js";
+  import { supabase } from "/src/lib/supabaseClient.js";
   import moment from "moment";
   import Chart from "chart.js/auto";
 
@@ -417,6 +417,12 @@
                 <a
                   class="nav-link nav-hover text-light"
                   href="/admin/dashboard/newsletter">Newsletter</a
+                >
+              </li>
+              <li class="nav-item">
+                <a
+                  class="nav-link nav-hover text-light"
+                  href="/admin/dashboard/appointments">Appointments</a
                 >
               </li>
             </ul>

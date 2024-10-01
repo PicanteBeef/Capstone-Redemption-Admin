@@ -2,7 +2,7 @@
 
 <script>
   import { onMount } from "svelte";
-  import supabase from "/src/lib/supabaseClient.js";
+  import { supabase } from "/src/lib/supabaseClient.js";
   import moment from "moment";
   import { createEventDispatcher } from "svelte";
 
@@ -451,6 +451,12 @@
               <a
                 class="nav-link nav-hover text-light"
                 href="/admin/dashboard/newsletter">Newsletter</a
+              >
+            </li>
+            <li class="nav-item">
+              <a
+                class="nav-link nav-hover text-light"
+                href="/admin/dashboard/appointments">Appointments</a
               >
             </li>
           </ul>
