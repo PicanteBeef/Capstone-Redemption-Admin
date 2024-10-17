@@ -686,27 +686,6 @@ function transactionLocationChange(event) {
             </div>
 
             <div class="row justify-content-center mt-4 mb-4">
-              <!-- Donation Appointments Card -->
-              <div class="card mb-3 col mx-1" style="height: 500px;">
-                <div class="card-header text-danger">
-                  <i class="fa fa-bar-chart" /> Donation Appointments
-                </div>
-                <!-- Bar chart for blood stock -->
-                <div class="card-body" style="height: 400px;">
-                  <!-- Embed Google Sheets -->
-                  <iframe
-                    title="Appointments"
-                    height="100%"
-                    width="100%"
-                    src="https://docs.google.com/spreadsheets/d/1cJrLiHqe5YurQatqDq1_XZILkBxwoKB9tHc4Y8O1_v8/gviz/tq?tqx=out:html&tgid=433245028"
-                    frameborder="0"
-                    allowfullscreen
-                  ></iframe>
-                </div>
-              </div>
-            </div>
-
-            <div class="row justify-content-center mt-4 mb-4">
               <!-- Recent Transactions Card -->
               <div class="card mb-3 col mx-1" style="width: 500px; height: 500px;">
                 <div class="card-header text-danger">
