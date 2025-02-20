@@ -5,164 +5,236 @@
     import { supabase } from "/src/lib/supabaseClient.js";
     import moment from "moment";
 
-    let sortColumn = "";
-    let sortDirection = 1; // 1 for ascending, -1 for descending
+    let transactions = [];
+    let filteredTransactions = [];
+    let isLoading = true;
+    let showModal = false; // Controls the visibility of the modal
+    let selectedDonor = null; // Stores the selected donor's data for the modal
+    let searchQuery = ''; // Tracks the search input value
+    let sortField = null; // Tracks the current field being sorted
+    let sortOrder = 'asc'; // Tracks the current sort order ('asc' or 'desc')
+    let searchCategory = 'text'; // Tracks the selected search category (default: text)
 
-    const sortTable = (column) => {
-    if (column === sortColumn) {
-      // Reverse the sort direction if the same column is clicked
-      sortDirection = -sortDirection;
-    } else {
-      // Set the new sort column and reset the direction
-      sortColumn = column;
-      sortDirection = 1;
+    // Fetch transactions from the database
+    async function fetchTransactions() {
+      try {
+        const { data, error } = await supabase
+          .from('transactions_processing')
+          .select('*');
+
+        if (error) {
+          console.error('Error fetching transactions:', error);
+          alert('Failed to load transactions.');
+        } else {
+          transactions = data;
+          filteredTransactions = data; // Initialize filtered transactions
+          console.log('Transactions loaded successfully:', transactions);
+        }
+      } catch (err) {
+        console.error('Unexpected error:', err);
+        alert('An unexpected error occurred while loading transactions.');
+      } finally {
+        isLoading = false;
+      }
     }
 
-    data = data.slice().sort((a, b) => {
-      const valueA = a[column];
-      const valueB = b[column];
-
-      if (typeof valueA === "string" && typeof valueB === "string") {
-        return sortDirection * valueA.localeCompare(valueB);
+    // Sorting functionality
+    function sortTable(field) {
+      if (sortField === field) {
+        // Toggle sort order if the same field is clicked again
+        sortOrder = sortOrder === 'asc' ? 'desc' : 'asc';
       } else {
-        return sortDirection * (valueA - valueB);
+        // Set new sort field and reset sort order to 'asc'
+        sortField = field;
+        sortOrder = 'asc';
       }
-    });
-  };
-  
-    let formData = {
-      bloodType: "",
-      amount: 0,
-      entryDate: "",
+
+      // Sort the transactions array
+      filteredTransactions = [...filteredTransactions].sort((a, b) => {
+        let valA = a[sortField];
+        let valB = b[sortField];
+
+        // Handle date fields
+        if (['donation_date', 'transaction_date', 'expiration_date'].includes(sortField)) {
+          valA = new Date(valA);
+          valB = new Date(valB);
+        }
+
+        // Case-insensitive sorting for text fields
+        if (['blood_type', 'transaction_type'].includes(sortField)) {
+          valA = valA.toLowerCase();
+          valB = valB.toLowerCase();
+        }
+
+        // Compare values
+        if (valA < valB) return sortOrder === 'asc' ? -1 : 1;
+        if (valA > valB) return sortOrder === 'asc' ? 1 : -1;
+        return 0;
+      });
+    }
+
+    // Helper function to normalize date format (e.g., "1/5" -> "01/05")
+    const normalizeDate = (dateString) => {
+      if (!dateString || typeof dateString !== 'string') return '';
+      const parts = dateString.split('/');
+      if (parts.length === 2) {
+        const [month, day] = parts.map(part => part.padStart(2, '0')); // Pad single-digit numbers
+        return `${month}/${day}`;
+      }
+      return dateString;
     };
-  
-    let data = [];
-    let originalData = [];
-    let searchTerm = '';
-    let data1 = [];
-  
-    // Insert Entry to Blood Inventory
-    async function handleSubmit(event) {
-      console.log(formData);
-      event.preventDefault();
-      // Calculate the expiry date by adding 42 days to the current date
-      const entryDate = new Date(formData.entryDate);
-      const expiryDate = new Date(formData.entryDate);
-      expiryDate.setDate(expiryDate.getDate() + 42);
-  
-      const { data: record, error } = await supabase
-        .from("blood_inventory")
-        .insert({
-          blood_type: formData.bloodType,
-          amount: formData.amount,
-          entry_date: entryDate,
-          expiry: expiryDate,
-        })
-        .select();
-  
-      if (error) {
-        console.error("Error inserting data:", error);
-        return;
+
+    // Helper function to validate date strings
+    const isValidDate = (dateString) => {
+      if (!dateString || typeof dateString !== 'string') return false;
+      // Normalize the date string for consistent parsing
+      const normalizedDate = normalizeDate(dateString);
+      // Try parsing as a full date
+      const fullDate = new Date(normalizedDate);
+      if (!isNaN(fullDate.getTime())) return true;
+      // Try parsing as a partial date (e.g., "01/05")
+      const parts = normalizedDate.split('/');
+      if (parts.length === 2) {
+        const [month, day] = parts.map(Number);
+        return month >= 1 && month <= 12 && day >= 1 && day <= 31;
       }
-  
-      formData = {
-        bloodType: "",
-        amount: 0,
-        entryDate: "",
-      };
-  
-      data = [record[0], ...data];
-    }
-  
-    // Delete Entry From Blood Inventory
-    async function deleteOne(itemToDelete) {
-      console.log(itemToDelete);
-  
-      const { error } = await supabase
-        .from("blood_inventory")
-        .delete()
-        .eq("id", itemToDelete);
-  
-      if (error) {
-        console.error("Error", error);
+      return false;
+    };
+
+    // Helper function to compare month and day
+    const matchesPartialDate = (donorDate, queryDate) => {
+      return (
+        donorDate.getMonth() + 1 === queryDate.getMonth() + 1 && // Match month
+        donorDate.getDate() === queryDate.getDate() // Match day
+      );
+    };
+
+    // Reactive filtering logic
+    $: {
+      if (!searchQuery) {
+        filteredTransactions = transactions; // Show all transactions if search query is empty
       } else {
-        data = data.filter((item) => item.id !== itemToDelete);
+        filteredTransactions = transactions.filter(transaction => {
+          if (searchCategory === 'text') {
+            // Text-based matching
+            return (
+              transaction.blood_type.toLowerCase().includes(searchQuery.toLowerCase()) ||
+              transaction.transaction_type.toLowerCase().includes(searchQuery.toLowerCase())
+            );
+          } else if (['donation_date', 'transaction_date', 'expiration_date'].includes(searchCategory)) {
+            // Date-based matching
+            const transactionDate = new Date(transaction[searchCategory]);
+            if (isValidDate(searchQuery)) {
+              const normalizedQuery = normalizeDate(searchQuery); // Normalize the query
+              const parts = normalizedQuery.split('/');
+              if (parts.length === 2) {
+                // Partial date match (e.g., "01/05")
+                const [month, day] = parts.map(Number);
+                const queryDate = new Date(2000, month - 1, day); // Use a dummy year
+                return matchesPartialDate(transactionDate, queryDate);
+              } else {
+                // Full date match (e.g., "01/05/1999")
+                const queryDate = new Date(normalizedQuery);
+                return transactionDate.toDateString() === queryDate.toDateString();
+              }
+            }
+          }
+          return false;
+        });
       }
-  
-      data = [record[0], ...data];
     }
 
-    const bloodValuePair = {
-      "a_pos": "A+",
-      "a_neg": "A-",
-      "b_pos": "B+",
-      "b_neg": "B-",
-      "ab_pos": "AB+",
-      "ab_neg": "AB-",
-      "o_pos": "O+",
-      "o_neg": "O-",
-    }
-    
-      //Fetch Blood Transaction Data
-    onMount(async () => {
-      const { data: records, error } = await supabase
-        .from("blood_transactions")
-        .select("*")
-        .order("transaction_date", { ascending: false });
-  
-      if (error) {
-        console.error("Error fetching data from Supabase:", error);
-      } else {
-        data = records;
-        originalData = records;
-      }
+    // Lifecycle hook to fetch transactions on page load
+    onMount(() => {
+      fetchTransactions();
     });
 
-  // Search Visible Table  
-  const search = () => {
-  if (searchTerm.trim() === "") {
-    // Reset the data to original when the search term is empty
-    data = originalData;
-    return;
-  }
+    // Open the modal and populate it with the selected donor's data
+    async function openModal(transaction) {
+      const donor = await fetchDonorDetails(transaction.reference_id);
+      if (donor) {
+        selectedDonor = mapDonorData(donor); // Map donor data to the local structure
+        showModal = true;
+      } else {
+        alert('Donor details could not be loaded.');
+      }
+    }
 
-  const searchTermLower = searchTerm.toLowerCase();
+    // Calculate age from birthdate
+    function calculateAge(birthdate) {
+      const today = new Date();
+      const birth = new Date(birthdate);
+      let age = today.getFullYear() - birth.getFullYear();
+      const monthDifference = today.getMonth() - birth.getMonth();
+      if (monthDifference < 0 || (monthDifference === 0 && today.getDate() < birth.getDate())) {
+        age--;
+      }
+      return age;
+    }
 
-  // Filter the data based on specific fields
-  const filteredData = originalData.filter((item) => {
-    // Check specific columns for matching search term, with null checks
-    const bloodTypeMatch = item.entry_bloodtype?.toLowerCase().includes(searchTermLower) ?? false;
-    const transactionTypeMatch = item.transaction_type?.toLowerCase().includes(searchTermLower) ?? false;
-    const amountMatch = item.amount?.toString().toLowerCase().includes(searchTermLower) ?? false;
+    // Fetch donor details from the donations_processing table using reference_id
+    async function fetchDonorDetails(referenceId) {
+      try {
+        const { data, error } = await supabase
+          .from('donations_processing')
+          .select('*')
+          .eq('dp_donor_id', referenceId)
+          .single(); // Use .single() since dp_donor_id is unique
 
-    // Format dates to match the search term format, with null checks
-    const formattedTransactionDate = item.transaction_date ? moment(item.transaction_date).format("L • hh:mma").toLowerCase() : "";
-    const formattedExpiryDate = item.blood_expiry ? moment(item.blood_expiry).format("L • hh:mma").toLowerCase() : "";
+        if (error) {
+          console.error('Error fetching donor details:', error);
+          alert('Failed to load donor details.');
+          return null;
+        }
 
-    const transactionDateMatch = formattedTransactionDate.includes(searchTermLower);
-    const expiryDateMatch = formattedExpiryDate.includes(searchTermLower);
+        return data;
+      } catch (err) {
+        console.error('Unexpected error:', err);
+        alert('An unexpected error occurred while loading donor details.');
+        return null;
+      }
+    }
 
-    // Add other field checks as needed, with null checks
-    const locationMatch = item.entry_location?.toLowerCase().includes(searchTermLower) ?? false;
+    // Map raw donor data to the local structure
+    function mapDonorData(donor) {
+      return {
+        id: donor.id || 'unknown',
+        firstName: donor.dp_first_name || 'Unknown',
+        lastName: donor.dp_last_name || 'Unknown',
+        bloodType: donor.dp_blood_type || 'Unknown',
+        birthdate: donor.dp_birthdate || null,
+        image: donor.dp_profile_image || null,
+        donationDate: donor.dp_donation_date || null,
+        expirationDate: donor.dp_expiration_date || null,
+        status: donor.dp_status || 'pending',
+        phases: {
+          history: {
+            status: getStatus(donor.dp_history_responses) || 'pending',
+            responses: donor.dp_history_responses || {}
+          },
+          laboratory: {
+            status: getStatus(donor.dp_laboratory_responses) || 'pending',
+            responses: donor.dp_laboratory_responses || {}
+          },
+          processing: {
+            status: getStatus(donor.dp_processing_responses) || 'pending',
+            responses: donor.dp_processing_responses || {}
+          },
+          screening: {
+            status: getStatus(donor.dp_screening_responses) || 'pending',
+            responses: donor.dp_screening_responses || {}
+          }
+        }
+      };
+    }
 
-    // Return true if any of the fields match the search term
-    return (
-      bloodTypeMatch ||
-      transactionTypeMatch ||
-      amountMatch ||
-      transactionDateMatch ||
-      expiryDateMatch ||
-      locationMatch
-    );
-  });
-
-  // Update the data to show only the filtered results
-  data = filteredData;
-};
-
-// Recompute the search results whenever the search term changes
-$: search();
-  </script>
+    // Helper function to determine phase status
+    function getStatus(responses) {
+      return Object.values(responses).every(value => value !== undefined && value !== null)
+        ? 'completed'
+        : 'pending';
+    }
+</script>
   
   <head>
     <meta charset="utf-8" />
@@ -244,6 +316,16 @@ $: search();
       .nav-hover:hover {
         background-position: 100% 100%; /*OR bottom right*/
         background-size: 100% 2px;
+      }
+
+      th:hover {
+        background-color: #fcd1c7;
+        cursor: pointer;
+      }
+
+      th.selected {
+        background-color: #fab9aa;
+        font-weight: bold;
       }
   
       ::-webkit-scrollbar {
@@ -355,63 +437,185 @@ $: search();
     </header>
   
     <main>
-      <!--Main Content-->
+      <!-- Main Content -->
       <div class="content-wrapper" style="margin-top: 5rem;">
-        <!-- Transaction Section-->
+        <!-- Transaction Section -->
         <div>
-          <!--Blood Inventory-->
-          <div class="card mb-3 mx-1" id="blood-inventory">
+          <!-- Blood Transactions Card -->
+          <div class="card mb-3 mx-1" id="blood-transactions">
             <div class="card-header text-danger">
               <i class="fa fa-droplet" /> Blood Transactions
             </div>
             <div class="card-body">
-              <div>
-                <input type="text" bind:value={searchTerm} on:input={search} placeholder="Search..." />
+              <!-- Search Bar and Dropdown -->
+              <div class="mb-3 d-flex justify-content-between align-items-center">
+                <div class="search-bar d-flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="Search..."
+                    bind:value={searchQuery}
+                    class="form-control"
+                    style="max-width: 300px;"
+                  />
+                  <select bind:value={searchCategory} class="form-select" style="width: 200px;">
+                    <option value="text">Text</option>
+                    <option value="donation_date">Donation Date</option>
+                    <option value="transaction_date">Transaction Date</option>
+                    <option value="expiration_date">Expiration Date</option>
+                  </select>
+                </div>
               </div>
-              <br>
+    
+              <!-- Table -->
               <div class="table-responsive">
-                <table
-                  class="table table-bordered"
-                  id="dataTable"
-                  width="100%"
-                  cellspacing="0"
-                >
-                  <thead>
-                    <tr class="clearfix">
-                      <th on:click={() => sortTable("id")}>Serial ID{sortColumn === "id"? sortDirection === 1? " ▲": " ▼": ""}</th>
-                      <th on:click={() => sortTable("entry_bloodtype")}>Blood Type{sortColumn === "entry_bloodtype"? sortDirection === 1? " ▲": " ▼": ""}</th>
-                      <th on:click={() => sortTable("amount")}>Amount{sortColumn === "amount"? sortDirection === 1? " ▲": " ▼": ""}</th>
-                      <th on:click={() => sortTable("transaction_date")}>Transaction Date{sortColumn === "transaction_date"? sortDirection === 1? " ▲": " ▼": ""}</th>
-                      <th on:click={() => sortTable("transaction_type")}>Transaction Type{sortColumn === "transaction_type"? sortDirection === 1? " ▲": " ▼": ""}</th>
-                      <th on:click={() => sortTable("entry_location")}>Location{sortColumn === "entry_location"? sortDirection === 1? " ▲": " ▼": ""}</th>
-                    </tr>
-                  </thead>
-                  <tfoot>
-                    <tr>
-                        <th>Serial ID</th>
-                        <th>Blood Type</th>
-                        <th>Amount</th>
-                        <th>Transaction Date</th>
-                        <th>Transaction Type</th>
-                        <th>Location</th>
-                    </tr>
-                  </tfoot>
-                  <tbody>
-                    {#each data as item (item.id)}
+                {#if isLoading}
+                  <p>Loading...</p>
+                {:else}
+                  <table class="table table-bordered table-hover">
+                    <thead class="table-light">
                       <tr>
-                        <td>{item.id}</td>
-                        <td>{item.entry_bloodtype}</td>
-                        <td>{item.amount}</td>
-                        <td>{moment(item.transaction_date).format("L • hh:mma")}</td>
-                        <td>{item.transaction_type}</td>
-                        <td>{item.entry_location}</td>
+                        <th
+                          on:click={() => sortTable('reference_id')}
+                          class:selected={sortField === 'reference_id'}
+                        >
+                          Reference ID
+                          {#if sortField === 'reference_id'}
+                            {sortOrder === 'asc' ? '▲' : '▼'}
+                          {/if}
+                        </th>
+                        <th
+                          on:click={() => sortTable('blood_type')}
+                          class:selected={sortField === 'blood_type'}
+                        >
+                          Blood Type
+                          {#if sortField === 'blood_type'}
+                            {sortOrder === 'asc' ? '▲' : '▼'}
+                          {/if}
+                        </th>
+                        <th
+                          on:click={() => sortTable('donation_date')}
+                          class:selected={sortField === 'donation_date'}
+                        >
+                          Donation Date
+                          {#if sortField === 'donation_date'}
+                            {sortOrder === 'asc' ? '▲' : '▼'}
+                          {/if}
+                        </th>
+                        <th
+                          on:click={() => sortTable('transaction_date')}
+                          class:selected={sortField === 'transaction_date'}
+                        >
+                          Transaction Date
+                          {#if sortField === 'transaction_date'}
+                            {sortOrder === 'asc' ? '▲' : '▼'}
+                          {/if}
+                        </th>
+                        <th
+                          on:click={() => sortTable('expiration_date')}
+                          class:selected={sortField === 'expiration_date'}
+                        >
+                          Expiration Date
+                          {#if sortField === 'expiration_date'}
+                            {sortOrder === 'asc' ? '▲' : '▼'}
+                          {/if}
+                        </th>
+                        <th
+                          on:click={() => sortTable('transaction_type')}
+                          class:selected={sortField === 'transaction_type'}
+                        >
+                          Transaction Type
+                          {#if sortField === 'transaction_type'}
+                            {sortOrder === 'asc' ? '▲' : '▼'}
+                          {/if}
+                        </th>
+                        <th>Action</th> <!-- New Action Column -->
                       </tr>
-                    {/each}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {#each filteredTransactions as transaction (transaction.id)}
+                        <tr>
+                          <td>{transaction.reference_id}</td>
+                          <td>{transaction.blood_type}</td>
+                          <td>{new Date(transaction.donation_date).toLocaleDateString()}</td>
+                          <td>{new Date(transaction.transaction_date).toLocaleString()}</td>
+                          <td>{new Date(transaction.expiration_date).toLocaleDateString()}</td>
+                          <td>{transaction.transaction_type}</td>
+                          <td>
+                            <!-- Action Button -->
+                            <button
+                              class="btn btn-sm btn-danger"
+                              on:click={() => openModal(transaction)}
+                            >
+                              View Details
+                            </button>
+                          </td>
+                        </tr>
+                      {/each}
+                    </tbody>
+                  </table>
+                  <!-- No Transactions Message -->
+                  {#if filteredTransactions.length === 0}
+                    <p class="text-center text-muted">No transactions found.</p>
+                  {/if}
+                {/if}
               </div>
             </div>
           </div>
+    
+          <!-- Modal for Donor Details -->
+          {#if showModal && selectedDonor}
+            <div class="modal show d-block" tabindex="-1" role="dialog">
+              <div class="modal-dialog modal-lg" role="document">
+                <div class="modal-content">
+                  <div class="modal-header">
+                    <h5 class="modal-title">Donor Details</h5>
+                    <button
+                      type="button"
+                      class="btn-close"
+                      aria-label="Close"
+                      on:click={() => (showModal = false)}
+                    ></button>
+                  </div>
+                  <div class="modal-body">
+                    <div class="row">
+                      <div class="col-md-4 text-center">
+                        <!-- Donor Image -->
+                        {#if selectedDonor.image}
+                          <img
+                            src={selectedDonor.image}
+                            alt="Donor Image"
+                            class="img-fluid rounded-circle"
+                          />
+                        {:else}
+                          <p>No Image Available</p>
+                        {/if}
+                      </div>
+                      <div class="col-md-8">
+                        <!-- Donor Information -->
+                        <p><strong>Name:</strong> {selectedDonor.firstName} {selectedDonor.lastName}</p>
+                        <p><strong>Blood Type:</strong> {selectedDonor.bloodType}</p>
+                        <p><strong>Birthdate:</strong> {new Date(selectedDonor.birthdate).toLocaleDateString()}</p>
+                        <p><strong>Age:</strong> {calculateAge(selectedDonor.birthdate)}
+                        <p><strong>Donation Date:</strong> {new Date(selectedDonor.donationDate).toLocaleDateString()}</p>
+                        <p><strong>Expiration Date:</strong> {new Date(selectedDonor.expirationDate).toLocaleDateString()}</p>
+                        <p><strong>Status:</strong> {selectedDonor.status}</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="modal-footer">
+                    <button
+                      type="button"
+                      class="btn btn-danger"
+                      on:click={() => (showModal = false)}
+                    >
+                      Close
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="modal-backdrop show"></div>
+          {/if}
         </div>
       </div>
     </main>

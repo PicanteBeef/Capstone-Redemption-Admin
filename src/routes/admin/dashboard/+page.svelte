@@ -39,6 +39,7 @@
       bloodType: donor.dp_blood_type || 'Unknown',
       birthdate: donor.dp_birthdate || null,
       image: donor.dp_profile_image || null,
+      dp_donor_id: donor.dp_donor_id || donor.id,
       donationDate: donor.dp_donation_date || null,
       expirationDate: donor.dp_expiration_date || null,
       status: donor.dp_status || 'pending', // Default to 'pending' if status is missing
@@ -802,7 +803,8 @@
       expirationDate.setDate(expirationDate.getDate() + 42); // Add 42 days
 
       const donorData = {
-        id: crypto.randomUUID(), // Generate a unique ID
+        id: crypto.randomUUID(),
+        dp_donor_id: crypto.randomUUID(), // Generate a unique ID
         dp_first_name: newDonor.firstName,
         dp_last_name: newDonor.lastName,
         dp_blood_type: newDonor.bloodType,
@@ -954,6 +956,39 @@ function selectDonor(donorId) {
           const bloodTypeCounts = calculateBloodTypeCounts(donors);
           console.log('Calculated Blood Type Counts:', bloodTypeCounts);
           updateBarChart(bloodTypeCounts);
+        }
+
+        console.log('Donor Data:', donor);
+        if (!donor.dp_donor_id) {
+          console.error('Error: dp_donor_id is missing for donor:', donor);
+          alert('Failed to log transaction. Missing donor reference ID.');
+          return;
+        }
+
+        // Log the transaction if the donor's status is now "available"
+        if (allPhasesCompleted) {
+          const transactionData = {
+            reference_id: donor.dp_donor_id, // Reference to the donor
+            blood_type: donor.bloodType || donor.dp_blood_type, // Blood type of the donation
+            donation_date: donor.donationDate, // Initial donation date
+            transaction_date: new Date().toISOString(), // Current timestamp (when blood enters inventory)
+            expiration_date: donor.expirationDate, // Expiration date of the blood unit
+            transaction_type: 'Blood In' // Default transaction type
+          };
+
+          console.log('Attempting to log transaction for donor:', donor);
+          console.log('Donor Blood Type:', donor.bloodType || donor.dp_blood_type);
+          // Insert the transaction into the `transactions_processing` table
+          const { error: transactionError } = await supabase
+            .from('transactions_processing')
+            .insert([transactionData]);
+
+          if (transactionError) {
+            console.error('Error logging transaction:', transactionError);
+            alert('Failed to log the transaction. Please try again.');
+          } else {
+            console.log('Transaction logged successfully:', transactionData);
+          }
         }
 
         // Update the selected donor reactively
