@@ -564,7 +564,17 @@
   // Define questions for each phase
   const questionnaire = {
     history: [
-      { type: 'text', label: 'Have you ever been diagnosed with a blood disorder?', name: 'blood_disorder', required: "true" },
+      {
+        type: 'checkbox',
+        label: 'Have you ever been diagnosed with a blood disorder?',
+        name: 'blood_disorder',
+        followUp: {
+          type: 'text',
+          label: 'If yes, please specify:',
+          name: 'blood_disorder_details',
+          required: true
+        }
+      },
       {
         type: 'checkbox',
         label: 'Do you have any allergies?',
@@ -583,7 +593,7 @@
         followUp: {
           type: 'text',
           label: 'If yes, please specify:',
-          name: 'allergy_details',
+          name: 'medication_details',
           required: true
         }
       },
@@ -600,28 +610,6 @@
         name: 'unexplained_weight_loss',
         options: ['Yes', 'No'],
         required: true
-      },
-      {
-        type: 'checkbox',
-        label: 'Do you have or have you ever had the following conditions (check all that apply):',
-        name: 'medical_conditions',
-        options: [
-          'Heart Disease',
-          'Diabetes',
-          'High Blood Pressure',
-          'Cancer',
-          'Hepatitis (A, B, or C)',
-          'HIV/AIDS',
-          'Tuberculosis (TB)',
-          'Epilepsy or Seizures',
-          'Blood Disorders (e.g., anemia, hemophilia)',
-        ],
-        followUp: {
-          type: 'text',
-          label: 'If "Other serious illnesses" is selected, please specify:',
-          name: 'other_illness_details',
-          required: true
-        }
       },
       {
         type: 'radio',
@@ -1630,10 +1618,90 @@ function selectDonor(donorId) {
                       </div>
                     </div>
 
+                    <div class="row">
+                      <h6 class="mb-3  fw-bold">Medical History</h6>
+                      <div class="col-md-6">
+                        <div class="mb-3">
+                          <label class="form-label fw-bold">Blood Disorders:</label>
+                          {#if selectedDonor.phases.history.responses.blood_disorder_details = null}
+                          <p class="form-control-static">{selectedDonor.phases.history.responses.blood_disorder_details}</p>
+                          {:else}
+                          <p class="form-control-static">No Disorders</p>
+                          {/if}
+                        </div>
+                        <div class="mb-3">
+                          <label class="form-label fw-bold">Allergies:</label>
+                          {#if selectedDonor.phases.history.responses.allergies === 'false'} 
+                          <p class="form-control-static">{selectedDonor.phases.history.responses.allergy_details}</p>
+                          {:else}
+                          <p class="form-control-static">No Allergies</p>
+                          {/if}
+                        </div>
+                      </div>
+                      <div class="col-md-6">
+                        <div class="mb-3">
+                          <label class="form-label fw-bold">Medications</label>
+                          {#if selectedDonor.phases.history.responses.medication_details = null}
+                          <p class="form-control-static">{selectedDonor.phases.history.responses.medication_detailss}</p>
+                          {:else}
+                          <p class="form-control-static">No Disorders</p>
+                          {/if}
+                        </div>
+                      </div>
+                      <div class="col-md-6">
+                        <div class="mb-3">
+                          <label class="form-label fw-bold">Feverish within 7 days?</label>
+                          <p class="form-control-static">{selectedDonor.phases.history.responses.symptoms_fever_cold_flu}</p>
+                        </div>
+                      </div>
+                      <div class="col-md-6">
+                        <div class="mb-3">
+                          <label class="form-label fw-bold">Weight Loss under 6 months?</label>
+                          <p class="form-control-static">{selectedDonor.phases.history.responses.unexplained_weight_loss}</p>
+                        </div>
+                      </div>
+                      <div class="col-md-6">
+                        <div class="mb-3">
+                          <label class="form-label fw-bold">Drug Use?</label>
+                          <p class="form-control-static">{selectedDonor.phases.history.responses.recreational_drugs}</p>
+                        </div>
+                      </div>
+                      <div class="col-md-6">
+                        <div class="mb-3">
+                          <label class="form-label fw-bold">Tobacco Use?</label>
+                          <p class="form-control-static">{selectedDonor.phases.history.responses.tobacco_use}</p>
+                        </div>
+                      </div>
+                      <div class="col-md-6">
+                        <div class="mb-3">
+                          <label class="form-label fw-bold">New tattoo within 6 months?</label>
+                          <p class="form-control-static">{selectedDonor.phases.history.responses.tattoo_piercing}</p>
+                        </div>
+                      </div>
+                    </div>
+
                     <!-- Additional Information -->
                     <div class="mt-4">
                       <h6 class="mb-3  fw-bold">Additional Information</h6>
                       <div class="row">
+                        <div class="col-md-6">
+                          <div class="mb-3">
+                            <label class="form-label fw-bold">Weight</label>
+                              <p class="form-control-static">{selectedDonor.phases.history.responses.weight} kg</p>
+                          </div>
+                        </div>
+                        <div class="col-md-6">
+                          <div class="mb-3">
+                            <label class="form-label fw-bold">Blood Pressure</label>
+                              <p class="form-control-static">{selectedDonor.phases.history.responses.blood_pressure} mmHg</p>
+                          </div>
+                        </div>
+                        <div class="col-md-6">
+                          <div class="mb-3">
+                            <label class="form-label fw-bold">Pulse Rate</label>
+                              <p class="form-control-static">{selectedDonor.phases.history.responses.pulse_rate} BPM</p>
+                          </div>
+                        </div>
                         <div class="col-md-6">
                           <div class="mb-3">
                             <label class="form-label fw-bold">Hemoglobin Level</label>
@@ -1651,11 +1719,11 @@ function selectDonor(donorId) {
                             <label class="form-label fw-bold">TTI Results</label>
                             <p class="form-control-static">
                               {#if areAllTTIsNegative(selectedDonor)}
-                                All tests passed.
+                                <p style="color: green">All tests passed.</p>
                               {:else if Object.values(selectedDonor.phases?.processing?.responses || {}).some(value => value === undefined)}
-                                Pending results.
+                              <p style="color: yellow">Pending results.</p>
                               {:else}
-                                One or more tests failed.
+                              <p style="color: red">One or more test failed.</p>
                               {/if}
                             </p>
                           </div>
