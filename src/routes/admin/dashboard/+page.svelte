@@ -389,31 +389,38 @@
     if (!dateString || typeof dateString !== 'string') return '';
     const parts = dateString.split('/');
     if (parts.length === 2) {
+      // Partial date (MM/DD)
       const [month, day] = parts.map(part => part.padStart(2, '0')); // Pad single-digit numbers
       return `${month}/${day}`;
+    } else if (parts.length === 3) {
+      // Full date (MM/DD/YYYY)
+      const [month, day, year] = parts.map(part => part.padStart(2, '0'));
+      return `${month}/${day}/${year}`;
     }
-    return dateString;
+    return ''; // Return empty string for invalid formats
   };
 
   // Helper function to validate date strings
   const isValidDate = (dateString) => {
     if (!dateString || typeof dateString !== 'string') return false;
-
-    // Normalize the date string for consistent parsing
-    const normalizedDate = normalizeDate(dateString);
-
-    // Try parsing as a full date
-    const fullDate = new Date(normalizedDate);
-    if (!isNaN(fullDate.getTime())) return true;
-
-    // Try parsing as a partial date (e.g., "01/05")
+    const normalizedDate = normalizeDate(dateString); // Normalize the date string
     const parts = normalizedDate.split('/');
-    if (parts.length === 2) {
-      const [month, day] = parts.map(Number);
-      return month >= 1 && month <= 12 && day >= 1 && day <= 31;
-    }
 
-    return false;
+    if (parts.length === 2) {
+      // Partial date (MM/DD)
+      const [month, day] = parts.map(Number);
+      return month >= 1 && month <= 12 && day >= 1 && day <= 31; // Validate month and day ranges
+    } else if (parts.length === 3) {
+      // Full date (MM/DD/YYYY)
+      const [month, day, year] = parts.map(Number);
+      const date = new Date(year, month - 1, day); // Create a Date object
+      return (
+        date.getFullYear() === year &&
+        date.getMonth() + 1 === month &&
+        date.getDate() === day
+      ); // Ensure the date is valid
+    }
+    return false; // Invalid format
   };
 
   // Helper function to compare month and day
@@ -426,24 +433,25 @@
 
   // Reactive filtering logic
   $: {
-    if (!searchQuery) {
+    const normalizedQuery = searchQuery.trim().toLowerCase(); // Normalize the query
+    if (!normalizedQuery) {
       filteredDonors = donors; // Show all donors if search query is empty
     } else {
       filteredDonors = donors.filter(donor => {
         if (searchCategory === 'text') {
           // Text-based matching
           return (
-            donor.firstName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            donor.lastName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            donor.bloodType.toLowerCase().includes(searchQuery.toLowerCase())
+            donor.firstName.toLowerCase().includes(normalizedQuery) ||
+            donor.lastName.toLowerCase().includes(normalizedQuery) ||
+            donor.bloodType.toLowerCase().includes(normalizedQuery) ||
+            donor.status.toLowerCase().includes(normalizedQuery)
           );
         } else if (['birthdate', 'donationDate', 'expirationDate'].includes(searchCategory)) {
           // Date-based matching
           const donorDate = new Date(donor[searchCategory]);
-
-          if (isValidDate(searchQuery)) {
-            const normalizedQuery = normalizeDate(searchQuery); // Normalize the query
-            const parts = normalizedQuery.split('/');
+          if (isValidDate(normalizedQuery)) {
+            const normalizedDate = normalizeDate(normalizedQuery); // Normalize the query
+            const parts = normalizedDate.split('/');
             if (parts.length === 2) {
               // Partial date match (e.g., "01/05")
               const [month, day] = parts.map(Number);
@@ -451,7 +459,7 @@
               return matchesPartialDate(donorDate, queryDate);
             } else {
               // Full date match (e.g., "01/05/1999")
-              const queryDate = new Date(normalizedQuery);
+              const queryDate = new Date(normalizedDate);
               return donorDate.toDateString() === queryDate.toDateString();
             }
           }
@@ -460,7 +468,8 @@
       });
     }
 
-    console.log('Search Query:', searchQuery);
+    // Debugging logs
+    console.log('Search Query:', normalizedQuery);
     console.log('Search Category:', searchCategory);
     console.log('Filtered Donors:', filteredDonors);
   }
@@ -473,6 +482,7 @@
   let selectedPhase = "";
   let phaseModalOpen = false;
   let showModal = false;
+  let modalContext = null;
   let selectedDonorId = null; // Track by ID instead of object
   let modalNode;
 
@@ -554,7 +564,7 @@
   // Define questions for each phase
   const questionnaire = {
     history: [
-      { type: 'text', label: 'Have you ever been diagnosed with a blood disorder?', name: 'blood_disorder' },
+      { type: 'text', label: 'Have you ever been diagnosed with a blood disorder?', name: 'blood_disorder', required: "true" },
       {
         type: 'checkbox',
         label: 'Do you have any allergies?',
@@ -562,8 +572,112 @@
         followUp: {
           type: 'text',
           label: 'If yes, please specify:',
-          name: 'allergy_details'
+          name: 'allergy_details',
+          required: true
         }
+      },
+      {
+        type: 'checkbox',
+        label: 'Are you taking any medications?',
+        name: 'medication',
+        followUp: {
+          type: 'text',
+          label: 'If yes, please specify:',
+          name: 'allergy_details',
+          required: true
+        }
+      },
+      {
+        type: 'radio',
+        label: 'Have you had any symptoms of fever, cold, or flu in the past 7 days?',
+        name: 'symptoms_fever_cold_flu',
+        options: ['Yes', 'No'],
+        required: true
+      },
+      {
+        type: 'radio',
+        label: 'Have you experienced any unexplained weight loss in the past 6 months?',
+        name: 'unexplained_weight_loss',
+        options: ['Yes', 'No'],
+        required: true
+      },
+      {
+        type: 'checkbox',
+        label: 'Do you have or have you ever had the following conditions (check all that apply):',
+        name: 'medical_conditions',
+        options: [
+          'Heart Disease',
+          'Diabetes',
+          'High Blood Pressure',
+          'Cancer',
+          'Hepatitis (A, B, or C)',
+          'HIV/AIDS',
+          'Tuberculosis (TB)',
+          'Epilepsy or Seizures',
+          'Blood Disorders (e.g., anemia, hemophilia)',
+        ],
+        followUp: {
+          type: 'text',
+          label: 'If "Other serious illnesses" is selected, please specify:',
+          name: 'other_illness_details',
+          required: true
+        }
+      },
+      {
+        type: 'radio',
+        label: 'Do you smoke or use tobacco products?',
+        name: 'tobacco_use',
+        options: ['Yes', 'No'],
+        required: true
+      },
+      {
+        type: 'radio',
+        label: 'Do you use recreational drugs?',
+        name: 'recreational_drugs',
+        options: ['Yes', 'No'],
+        required: true
+      },
+      {
+        type: 'radio',
+        label: 'Have you had a new sexual partner or multiple partners in the past 12 months?',
+        name: 'sexual_partners',
+        options: ['Yes', 'No'],
+        required: true
+      },
+      {
+        type: 'radio',
+        label: 'Have you received a tattoo or piercing in the past 6 months?',
+        name: 'tattoo_piercing',
+        options: ['Yes', 'No'],
+        required: true
+      },
+      {
+        type: 'text',
+        label: 'Pulse Rate:',
+        name: 'pulse_rate',
+        placeholder: 'bpm',
+        required: true
+      },
+      {
+        type: 'text',
+        label: 'Blood Pressure:',
+        name: 'blood_pressure',
+        placeholder: '___ / ___ mmHg',
+        required: true
+      },
+      {
+        type: 'text',
+        label: 'Hemoglobin Level:',
+        name: 'hemoglobin_level',
+        placeholder: 'g/dL',
+        required: true
+      },
+      {
+        type: 'text',
+        label: 'Weight:',
+        name: 'weight',
+        placeholder: 'in kg',
+        required: true
       }
     ],
     laboratory: [
@@ -622,7 +736,6 @@
   // Update phase status and save responses
   function updatePhaseStatus(status, donorId) {
     console.log('Updating Phase Status - Donor ID:', donorId);
-
     if (!donorId) {
       console.error('Error: Donor ID is undefined in updatePhaseStatus.');
       alert('Failed to update phase status. Please select a donor.');
@@ -662,9 +775,21 @@
     // Reset responses only if the phase is denied
     if (status === 'denied') {
       responses = {}; // Clear responses for a fresh start
+
+      // Log the denial for debugging
+      console.log(`Phase "${selectedPhase}" has been denied for donor ID: ${donorId}`);
+
+      // Prevent progression to subsequent phases
+      if (selectedPhase !== 'screening') {
+        alert(`The ${selectedPhase} phase has been denied. Progression to subsequent phases is blocked.`);
+      }
     }
 
-    phaseModalOpen = false; // Close the modal
+    // Close the modal
+    phaseModalOpen = false;
+
+    // Optionally, refresh the UI to reflect the updated status
+    fetchDonors(); // Re-fetch donors to ensure the UI reflects the latest state
   }
 
   // Validate phase responses
@@ -765,14 +890,30 @@
     return Object.values(donor.phases).every(phase => phase.status === 'completed');
   }
 
-  //toggle dropdown
+  function handleDonorClick(donor) {
+    console.log('handleDonorClick triggered for donor:', donor);
+    if (donor.status === 'available' || donor.status === 'released' || donor.status === 'denied') {
+      // Show donor responses modal
+      selectedDonor = donor;
+      showModal = true;
+      modalContext = 'responses';
+      console.log('Modal context set to "responses". Selected donor:', selectedDonor);
+    } else if (donor.status === 'pending') {
+      // Open dropdown for pending donors
+      toggleDropdown(donor.id);
+      console.log('Dropdown toggled for donor ID:', donor.id);
+    }
+  }
+  $: {
+    console.log('State Variables:', { showModal, modalContext, selectedDonor });
+  }
+
   function toggleDropdown(donorId) {
     if (selectedDonorId === donorId) {
-      selectedDonorId = null; // Close the dropdown if already open
+      selectedDonorId = null; // Close dropdown if already open
     } else {
-      selectedDonorId = donorId; // Open the dropdown for the selected donor
+      selectedDonorId = donorId; // Open dropdown for the clicked donor
     }
-    console.log('Toggled Dropdown - Selected Donor ID:', selectedDonorId); // Debugging
   }
 
   // Handle image upload
@@ -921,13 +1062,20 @@ function selectDonor(donorId) {
         phase => phase.status === 'completed'
       );
 
+      // Check if the screening phase is denied
+      const isScreeningDenied = donor.phases.screening?.status === 'denied';
+
       // Prepare the data to save
       const updatedData = {
         dp_history_responses: donor.phases.history.responses,
         dp_laboratory_responses: donor.phases.laboratory.responses,
         dp_processing_responses: donor.phases.processing.responses,
         dp_screening_responses: screeningResponses,
-        dp_status: allPhasesCompleted ? 'available' : 'pending'// Update status only if all phases are completed
+        dp_status: isScreeningDenied
+          ? 'denied' // Set status to "denied" ONLY if the screening phase is denied
+          : allPhasesCompleted
+          ? 'available' // Set status to "available" if all phases are completed
+          : 'pending', // Otherwise, set status to "pending"
       };
 
       console.log('Saving to Database - Updated Data:', updatedData);
@@ -944,11 +1092,11 @@ function selectDonor(donorId) {
       } else {
         console.log('Donor data saved successfully to the database.');
 
-        console.log('Before updating donors array:', donors);
-        // Update the local `donors` array reactively
+        // Update the local donors array reactively
         donors = donors.map(d =>
           d.id === donorId ? { ...d, ...updatedData, status: updatedData.dp_status } : d
         );
+
         console.log('After updating donors array:', donors);
 
         // Recalculate blood type counts and update the chart ONLY if status is 'available'
@@ -956,13 +1104,6 @@ function selectDonor(donorId) {
           const bloodTypeCounts = calculateBloodTypeCounts(donors);
           console.log('Calculated Blood Type Counts:', bloodTypeCounts);
           updateBarChart(bloodTypeCounts);
-        }
-
-        console.log('Donor Data:', donor);
-        if (!donor.dp_donor_id) {
-          console.error('Error: dp_donor_id is missing for donor:', donor);
-          alert('Failed to log transaction. Missing donor reference ID.');
-          return;
         }
 
         // Log the transaction if the donor's status is now "available"
@@ -973,12 +1114,13 @@ function selectDonor(donorId) {
             donation_date: donor.donationDate, // Initial donation date
             transaction_date: new Date().toISOString(), // Current timestamp (when blood enters inventory)
             expiration_date: donor.expirationDate, // Expiration date of the blood unit
-            transaction_type: 'Blood In' // Default transaction type
+            transaction_type: 'Blood In', // Default transaction type
           };
 
           console.log('Attempting to log transaction for donor:', donor);
           console.log('Donor Blood Type:', donor.bloodType || donor.dp_blood_type);
-          // Insert the transaction into the `transactions_processing` table
+
+          // Insert the transaction into the transactions_processing table
           const { error: transactionError } = await supabase
             .from('transactions_processing')
             .insert([transactionData]);
@@ -994,7 +1136,6 @@ function selectDonor(donorId) {
         // Update the selected donor reactively
         selectedDonor = { ...donors.find(d => d.id === donorId) };
         console.log('Updated Selected Donor:', selectedDonor);
-
         alert('Donor data saved successfully!');
       }
     } catch (error) {
@@ -1293,12 +1434,6 @@ function selectDonor(donorId) {
               <li class="nav-item">
                 <a
                   class="nav-link nav-hover text-light"
-                  href="/admin/dashboard/inventory">Inventory</a
-                >
-              </li>
-              <li class="nav-item">
-                <a
-                  class="nav-link nav-hover text-light"
                   href="/admin/dashboard/bloodrequests">Blood Requests</a
                 >
               </li>
@@ -1306,18 +1441,6 @@ function selectDonor(donorId) {
                 <a
                   class="nav-link nav-hover text-light"
                   href="/admin/dashboard/bloodtransac">Blood Transactions</a
-                >
-              </li>
-              <li class="nav-item">
-                <a
-                  class="nav-link nav-hover text-light"
-                  href="/admin/dashboard/bloodreqforms">Request Forms</a
-                >
-              </li>
-              <li class="nav-item">
-                <a
-                  class="nav-link nav-hover text-light"
-                  href="/admin/dashboard/donations">Donations</a
                 >
               </li>
               <li class="nav-item">
@@ -1377,13 +1500,13 @@ function selectDonor(donorId) {
         <!-- Donations Processing -->
         <div>
           <!-- Modal -->
-          {#if showModal}
+          {#if showModal && modalContext === 'addDonor'}
           <div class="modal fade show d-block" tabindex="-1">
             <div class="modal-dialog">
               <div class="modal-content">
                 <div class="modal-header">
                   <h5 class="modal-title">Add New Donor</h5>
-                  <button type="button" class="btn-close" on:click={() => showModal = false}></button>
+                  <button type="button" class="btn-close" on:click={() => {showModal = false; modalContext = null;}}></button>
                 </div>
                 <div class="modal-body">
                   <form on:submit|preventDefault={addDonor}>
@@ -1427,6 +1550,126 @@ function selectDonor(donorId) {
           </div>
           {/if}
 
+          <!-- Modal for Displaying Responses -->
+          {#if showModal && modalContext === 'responses' && selectedDonor}
+            <div class="modal fade show d-block" tabindex="-1">
+              <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                  <!-- Modal Header -->
+                  <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title">Donor Information</h5>
+                    <button type="button" class="btn-close btn-close-white" on:click={() => { showModal = false; modalContext = null; }}></button>
+                  </div>
+
+                  <!-- Modal Body -->
+                  <div class="modal-body">
+                    <!-- Donor Image and Name -->
+                    <div class="d-flex align-items-center mb-4">
+                      <div class="me-4">
+                        {#if selectedDonor.image}
+                          <img src={selectedDonor.image} alt="Donor" class="donor-image rounded-circle shadow-sm" />
+                        {:else}
+                          <div class="no-image rounded-circle shadow-sm d-flex justify-content-center align-items-center">
+                            No Image
+                          </div>
+                        {/if}
+                      </div>
+                      <div>
+                        <h4 class="mb-0">{selectedDonor.firstName} {selectedDonor.lastName}</h4>
+                        <p class="text-muted">
+                          {#if selectedDonor.status === 'pending'}
+                            Pending
+                          {:else if selectedDonor.status === 'available'}
+                            Available
+                          {:else if selectedDonor.status === 'released'}
+                            Released
+                          {:else if selectedDonor.status === 'released'}
+                            Denied
+                          {/if}
+                        </p>
+                      </div>
+                    </div>
+
+                    <!-- Donor Details Grid -->
+                    <div class="row">
+                      <div class="col-md-6">
+                        <div class="mb-3">
+                          <label class="form-label fw-bold">First Name</label>
+                          <p class="form-control-static">{selectedDonor.firstName}</p>
+                        </div>
+                      </div>
+                      <div class="col-md-6">
+                        <div class="mb-3">
+                          <label class="form-label fw-bold">Last Name</label>
+                          <p class="form-control-static">{selectedDonor.lastName}</p>
+                        </div>
+                      </div>
+                      <div class="col-md-6">
+                        <div class="mb-3">
+                          <label class="form-label fw-bold">Blood Type</label>
+                          <p class="form-control-static">{selectedDonor.bloodType}</p>
+                        </div>
+                      </div>
+                      <div class="col-md-6">
+                        <div class="mb-3">
+                          <label class="form-label fw-bold">Birthdate</label>
+                          <p class="form-control-static">{new Date(selectedDonor.birthdate).toLocaleDateString()}</p>
+                        </div>
+                      </div>
+                      <div class="col-md-6">
+                        <div class="mb-3">
+                          <label class="form-label fw-bold">Donation Date</label>
+                          <p class="form-control-static">{new Date(selectedDonor.donationDate).toLocaleDateString()}</p>
+                        </div>
+                      </div>
+                      <div class="col-md-6">
+                        <div class="mb-3">
+                          <label class="form-label fw-bold">Expiration Date</label>
+                          <p class="form-control-static">{new Date(selectedDonor.expirationDate).toLocaleDateString()}</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Additional Information -->
+                    <div class="mt-4">
+                      <h6 class="mb-3  fw-bold">Additional Information</h6>
+                      <div class="row">
+                        <div class="col-md-6">
+                          <div class="mb-3">
+                            <label class="form-label fw-bold">Hemoglobin Level</label>
+                            <p class="form-control-static">
+                              {#if selectedDonor.phases?.laboratory?.responses?.lab_hemoglobin !== undefined}
+                                {selectedDonor.phases.laboratory.responses.lab_hemoglobin}
+                              {:else}
+                                Pending results.
+                              {/if}
+                            </p>
+                          </div>
+                        </div>
+                        <div class="col-md-6">
+                          <div class="mb-3">
+                            <label class="form-label fw-bold">TTI Results</label>
+                            <p class="form-control-static">
+                              {#if areAllTTIsNegative(selectedDonor)}
+                                All tests passed.
+                              {:else if Object.values(selectedDonor.phases?.processing?.responses || {}).some(value => value === undefined)}
+                                Pending results.
+                              {:else}
+                                One or more tests failed.
+                              {/if}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          {:else}
+            {console.log('Conditions not met for rendering Donor Info Modal:', { showModal, modalContext, selectedDonor })}
+          {/if}
+
           <div class="row m-3">
             <div class="card mb-3 col mx-1">
               <div class="card-header text-danger">
@@ -1438,7 +1681,7 @@ function selectDonor(donorId) {
                     <div class="d-flex justify-content-between align-items-center mb-1">
                       <!-- Add Donor Button -->
                       <div>
-                        <button class="btn btn-danger" on:click={() => showModal = true}>
+                        <button class="btn btn-danger" on:click={() => { showModal = true; modalContext = 'addDonor'; }}>
                           <i class="fa fa-plus" /> Add Donor
                         </button>
                       </div>
@@ -1515,7 +1758,7 @@ function selectDonor(donorId) {
                             <td colspan="8">No donors found.</td>
                           </tr>
                         {:else}
-                          {#each filteredDonors as donor (donor.id)}
+                        {#each filteredDonors as donor (donor.id)}
                             <!-- Main Donor Row -->
                             <tr>
                               <td>
@@ -1525,12 +1768,12 @@ function selectDonor(donorId) {
                                       src={donor.image} 
                                       class="donor-image clickable" 
                                       alt="Donor"
-                                      on:click={() => toggleDropdown(donor.id)}
+                                      on:click={() => handleDonorClick(donor)}
                                     >
                                   {:else}
                                     <div 
                                       class="no-image clickable" 
-                                      on:click={() => toggleDropdown(donor.id)}
+                                      on:click={() => handleDonorClick(donor)}
                                     >
                                       No Image
                                     </div>
@@ -1548,12 +1791,16 @@ function selectDonor(donorId) {
                                   <span style="color: yellow;">Pending</span>
                                 {:else if donor.status === 'available'}
                                   <span style="color: green;">Available</span>
+                                {:else if donor.status === 'released'}
+                                  <span style="color: green;">Released</span>
+                                  {:else if donor.status === 'denied'}
+                                  <span style="color: red;">Denied</span>
                                 {/if}
                               </td>
                             </tr>
-                      
+                          
                             <!-- Dropdown Row -->
-                            {#if selectedDonorId === donor.id && selectedDonor}
+                            {#if selectedDonorId === donor.id && selectedDonor && donor.status === 'pending'}
                               <tr class="dropdown-row">
                                 <td colspan="8">
                                   <div class="phase-dropdown">

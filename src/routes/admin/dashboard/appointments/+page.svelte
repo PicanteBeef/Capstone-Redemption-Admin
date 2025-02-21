@@ -329,12 +329,6 @@ const searchCompleted = () => {
               <li class="nav-item">
                 <a
                   class="nav-link nav-hover text-light"
-                  href="/admin/dashboard/inventory">Inventory</a
-                >
-              </li>
-              <li class="nav-item">
-                <a
-                  class="nav-link nav-hover text-light"
                   href="/admin/dashboard/bloodrequests">Blood Requests</a
                 >
               </li>
@@ -342,18 +336,6 @@ const searchCompleted = () => {
                 <a
                   class="nav-link nav-hover text-light"
                   href="/admin/dashboard/bloodtransac">Blood Transactions</a
-                >
-              </li>
-              <li class="nav-item">
-                <a
-                  class="nav-link nav-hover text-light"
-                  href="/admin/dashboard/bloodreqforms">Request Forms</a
-                >
-              </li>
-              <li class="nav-item">
-                <a
-                  class="nav-link nav-hover text-light"
-                  href="/admin/dashboard/donations">Donations</a
                 >
               </li>
               <li class="nav-item">

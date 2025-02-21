@@ -1,198 +1,391 @@
 <!-- Blood requests lands here. -->
 
 <script>
-  import { onMount } from "svelte";
-  import { supabase } from "/src/lib/supabaseClient.js";
-  import moment from "moment";
-  import { createEventDispatcher } from "svelte";
+  import { onMount } from 'svelte';
+  import { supabase } from '/src/lib/supabaseClient.js'; // Adjust the path as needed
 
-    let data = [];
-    let originalData = [];
-    let searchTerm = '';
+  let showModal = false; // Controls the visibility of the modal
+  let searchQuery = ''; // Tracks the search input value
+  let requests = [];
+  let filteredRequests = [];
+  let isLoading = true;
+  let reviewModal = false;
+  let acceptModal = false;
+  let denyModal = false;
+  let selectedRequest = null;
+  let selectedDonationId = '';
+  let denialReason = '';
+  let otherReason = '';
+  let availableDonations = [];
+  let isAcceptExpanded = false; // Controls the "Accept" section
+  let isDenyExpanded = false; // Controls the "Deny" section
 
-    const bloodValuePair = {
-    "A+": "a_pos",
-    "A-": "a_neg",
-    "B+": "b_pos",
-    "B-": "b_neg",
-    "AB+": "ab_pos",
-    "AB-": "ab_neg",
-    "O+": "o_pos",
-    "O-": "o_neg",
-  }
-    
-  //Fetch Blood Requests Data
-  onMount(async () => {
-    const { data: records, error } = await supabase
-      .from("blood_requests")
-      .select("*")
-      .order("request_date", { ascending: false });
+  // State for the new request form
+  let newRequest = {
+    requester_first_name: '',
+    requester_last_name: '',
+    birthdate: '',
+    blood_type: 'A+',
+    image: null,
+    purpose: '',
+    urgency: 'Low',
+    amount: 1,
+  };
 
-    if (error) {
-      console.error("Error fetching data from Supabase:", error);
-    } else {
-      data = records;
-      originalData = records;
+  // Fetch blood requests from the database
+  async function fetchRequests() {
+    try {
+      const { data, error } = await supabase
+        .from('requests_processing')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching requests:', error);
+        alert('Failed to load requests.');
+      } else {
+        requests = data;
+        filteredRequests = data; // Initialize filtered requests
+      }
+    } catch (err) {
+      console.error('Unexpected error:', err);
+      alert('An unexpected error occurred while loading requests.');
+    } finally {
+      isLoading = false;
     }
+  }
+
+  // Reactive filtering logic
+  $: {
+    const normalizedQuery = searchQuery.trim().toLowerCase(); // Normalize the query
+    if (!normalizedQuery) {
+      filteredRequests = requests; // Show all requests if search query is empty
+    } else {
+      filteredRequests = requests.filter(request => {
+        // Text-based matching
+        return (
+          request.requester_first_name.toLowerCase().includes(normalizedQuery) ||
+          request.requester_last_name.toLowerCase().includes(normalizedQuery) ||
+          request.blood_type.toLowerCase().includes(normalizedQuery) ||
+          request.status.toLowerCase().includes(normalizedQuery) ||
+          request.urgency.toLowerCase().includes(normalizedQuery) ||
+          String(request.amount).includes(normalizedQuery) // Convert amount to string for matching
+        );
+      });
+    }
+
+    // Debugging logs
+    console.log('Search Query:', normalizedQuery);
+    console.log('Filtered Requests:', filteredRequests);
+  }
+
+  function handleImageUpload(event) {
+    const file = event.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        newRequest.image = e.target.result; // Store the Base64 string
+      };
+      reader.readAsDataURL(file); // Convert the file to a Base64 string
+    }
+  }
+
+  // Submit the blood request
+  async function handleSubmit() {
+    try {
+      await supabase.from('requests_processing').insert({
+        requester_first_name: newRequest.requester_first_name,
+        requester_last_name: newRequest.requester_last_name,
+        birthdate: newRequest.birthdate,
+        blood_type: newRequest.blood_type,
+        image: newRequest.image, // Base64 string
+        purpose: newRequest.purpose,
+        urgency: newRequest.urgency,
+        amount: newRequest.amount,
+        status: 'pending',
+        created_at: new Date().toISOString(),
+      });
+
+      alert('Request submitted successfully.');
+      newRequest = {
+        requester_first_name: '',
+        requester_last_name: '',
+        birthdate: '',
+        blood_type: 'A+',
+        image: null,
+        purpose: '',
+        urgency: 'Low',
+        amount: 1,
+      }; // Reset form
+      fetchRequests(); // Refresh the table
+      showModal = false; // Close the modal
+    } catch (err) {
+      console.error('Error submitting request:', err);
+      alert('An unexpected error occurred while submitting the request.');
+    }
+  }
+
+  // Lifecycle hook to fetch requests on page load
+  onMount(() => {
+    fetchRequests();
   });
 
-    
-  const search = () => {
-    if (searchTerm.trim() === '') {
-      data = originalData;
+  // Open Review Modal
+  function openReviewModal(request) {
+    console.log('Opening review modal for request:', request);
+    if (!request) {
+      console.error('Error: Request object is undefined.');
+      alert('Failed to open the modal. Please try again.');
       return;
     }
 
-    const filteredData = originalData.filter(item => {
-      return (
-        item.request_urgency.toLowerCase().includes(searchTerm.toLowerCase())
-        // Add more fields as needed for your search
-      );
-    });
+    // Set the selected request and open the modal
+    selectedRequest = request;
+    reviewModal = true; // Ensure this is set to true
+    console.log('Review modal state:', reviewModal);
 
-    data = filteredData;
-  };
-  $: search(); 
-  
+    // Reset expanded states
+    isAcceptExpanded = false;
+    isDenyExpanded = false;
 
-  let bloodBags = [];
-
-  onMount(async () => {
-    const { data: records, error } = await supabase
-      .from("blood_stock")
-      .select("*")
-
-    if (error) {
-      console.error("Error fetching data from Supabase:", error);
-    } else {
-      bloodBags = records[0];
-      console.log(bloodBags);
-    }
-  });
-
-  //Modal Functions
-  let requestDetails;
-  let remarks = "";
-  let isOpen = false;
-
-  let rowStatus = new Map();
-  const rowStatusUpdate = new Map(rowStatus);
-
-  const dispatch = createEventDispatcher();
-
-  const openModal = (item) => {
-    requestDetails = item;
-    isOpen = true;
-  };
-
-  const closeModal = () => {
-    isOpen = false;
-    dispatch("modalClosed");
-  };
-
-  const handleCheckButtonClick = async () => {
-  // Transfer data to another table
-  const { id } = requestDetails;
-  const { data, error } = await supabase
-    .from("blood_transactions")
-    .upsert([
-      {
-        // Map the data accordingly if needed
-        id: id,
-        entry_bloodtype: requestDetails.patient_bloodtype,
-        amount: requestDetails.request_quantity,
-        transaction_type: "Blood Out"
-      },
-    ]);
-
-  if (error) {
-    console.error("Error transferring data:", error);
-    return;
+    // Fetch available donations for the requested blood type (if needed)
+    fetchAvailableDonations(request.blood_type);
   }
 
-  console.log("Accepted!");
-  rowStatusUpdate.set(requestDetails.id, { action: "accept" });
-  rowStatus = rowStatusUpdate;
-  console.log(requestDetails);
-
-  
-  const requestBloodtype = bloodValuePair[requestDetails.patient_bloodtype];
-  console.log(requestBloodtype);
-
-  const { data: dataZ, errorZ } = await supabase
-      .from('blood_stock')
-      .select(requestBloodtype)
-
-      if (errorZ) {
-        console.error('Error fetching data from Supabase:', error.message);
-        return;
-      }
-
-      console.log(dataZ);
-      const currentCount = dataZ[0]?.[requestBloodtype] || 0;
-      const newTotal = parseInt(currentCount) - parseInt(requestDetails.request_quantity);
-
-  const { updateError } = await supabase
-      .from('blood_stock')
-      .update({ [requestBloodtype]: newTotal})
-      .eq('id', 1);
-
-      if (updateError) {
-        console.error('Error updating data in Supabase:', updateError.message);
-        return;
-      }
-      console.log("Blood Stock Updated Successfully.");
-
-  // Assuming the original table is named 'blood_requests'
-  const deleteResponse = await supabase
-    .from("blood_requests")
-    .delete()
-    .eq("id", id);
-
-  // Check for errors in the delete operation
-  if (deleteResponse.error) {
-    console.error("Error deleting data from original table:", deleteResponse.error);
-    // You may want to handle the error appropriately, e.g., retry or show a user-friendly message
-    return;
+  // Close Review Modal
+  function closeReviewModal() {
+    selectedRequest = null;
+    isAcceptExpanded = false;
+    isDenyExpanded = false;
+    reviewModal = false;
   }
 
-  // Data has been successfully transferred to the destination table and deleted from the original table
-  // console.log("Data transferred and deleted successfully!");
-};
+  function openAcceptSection() {
+    isAcceptExpanded = true;
+    isDenyExpanded = false; // Collapse the Deny section
+  }
 
-  const handleXMarkButtonClick = async () => {
-    // Additional logic for x-mark button if needed
-    const { id } = requestDetails;
-    console.log("Denied!");
-    rowStatusUpdate.set(requestDetails.id, { action: "reject" });
-    rowStatus = rowStatusUpdate;
-  };
+  function openDenySection() {
+    isDenyExpanded = true;
+    isAcceptExpanded = false; // Collapse the Accept section
+  }
 
-  let sortColumn = "";
-  let sortDirection = 1; // 1 for ascending, -1 for descending
+  // Fetch Available Donations
+  async function fetchAvailableDonations(bloodType) {
+    try {
+      const { data, error } = await supabase
+        .from('donations_processing')
+        .select('*')
+        .eq('dp_blood_type', bloodType)
+        .eq('dp_status', 'available')
+        .order('dp_donation_date', { ascending: true });
 
-  const sortTable = (column) => {
-    if (column === sortColumn) {
-      // Reverse the sort direction if the same column is clicked
-      sortDirection = -sortDirection;
-    } else {
-      // Set the new sort column and reset the direction
-      sortColumn = column;
-      sortDirection = 1;
+      if (error) throw error;
+
+      availableDonations = data;
+    } catch (err) {
+      console.error('Error fetching available donations:', err);
+      alert('Failed to fetch available donations.');
     }
+  }
 
-    data = data.slice().sort((a, b) => {
-      const valueA = a[column];
-      const valueB = b[column];
-
-      if (typeof valueA === "string" && typeof valueB === "string") {
-        return sortDirection * valueA.localeCompare(valueB);
+  // Function to toggle donation selection
+  function toggleDonationSelection(donationId) {
+    if (selectedDonationId.includes(donationId)) {
+      // Remove donation if already selected
+      selectedDonationId = selectedDonationId.filter(id => id !== donationId);
+    } else {
+      // Add donation if not exceeding the requested amount
+      if (selectedDonationId.length < selectedRequest.amount) {
+        selectedDonationId = [...selectedDonationId, donationId];
       } else {
-        return sortDirection * (valueA - valueB);
+        alert(`You can only select up to ${selectedRequest.amount} donations.`);
       }
-    });
-  };
-  
+    }
+  }
+
+  // Handle Accept Request
+  async function handleAcceptRequest(request, selectedDonations) {
+    if (selectedDonations.length !== request.amount) {
+      alert(`Please select exactly ${request.amount} donations.`);
+      return;
+    }
+
+    if (request.status !== 'pending') {
+      alert('This request has already been processed and cannot be accepted.');
+      return;
+    }
+
+    try {
+      // Validate the request object
+      console.log('Request Object:', request);
+      if (!request || !request.id) {
+        console.error('Request object or request ID is missing.');
+        alert('Failed to process the request: Request ID is missing.');
+        return;
+      }
+
+      // Prepare an array of promises for batch operations
+      const updatePromises = [];
+      const transactionPromises = [];
+
+      for (const donationId of selectedDonations) {
+        console.log(`Processing donation ID: ${donationId}`);
+
+        // Fetch the details of the selected donation
+        console.log(`Fetching donation record for ID: ${donationId}`);
+        const { data: donationRecord, error: donationError } = await supabase
+          .from('donations_processing')
+          .select('id, dp_donor_id, dp_donation_date, dp_expiration_date') // Select only necessary fields
+          .eq('id', donationId)
+          .single();
+
+        if (donationError) {
+          console.error(`Error fetching donation details for ID ${donationId}:`, donationError.message || donationError);
+          throw new Error(`Failed to fetch donation details for ID ${donationId}: ${donationError.message || donationError}`);
+        }
+
+        if (!donationRecord) {
+          console.error(`Donation record not found for ID: ${donationId}`);
+          throw new Error(`The referenced donation does not exist for ID: ${donationId}`);
+        }
+
+        console.log(`Fetched donation record:`, donationRecord);
+
+        // Extract the donor ID (dp_donor_id) from the donation record
+        const donorId = donationRecord.dp_donor_id;
+
+        // Check if the donation already has a "Blood Out" transaction
+        console.log(`Checking for existing "Blood Out" transaction for donation ID: ${donationId}`);
+        const { data: existingTransactions, error: checkError } = await supabase
+          .from('transactions_processing')
+          .select('*')
+          .eq('reference_id', donorId) // Use donorId (dp_donor_id) instead of donationId
+          .eq('transaction_type', 'Blood Out');
+
+        if (checkError) {
+          console.error(`Error checking for existing transaction for donation ID ${donationId}:`, checkError.message || checkError);
+          throw new Error(`Failed to check for existing transaction for donation ID ${donationId}: ${checkError.message || checkError}`);
+        }
+
+        if (existingTransactions && existingTransactions.length > 0) {
+          console.error(`Transaction already exists for this donation ID: ${donationId}`, existingTransactions);
+          throw new Error(`A "Blood Out" transaction already exists for this donation ID: ${donationId}`);
+        }
+
+        console.log(`No existing "Blood Out" transaction found for donation ID: ${donationId}`);
+
+        // Mark the donation as "released"
+        console.log(`Marking donation as "released" for ID: ${donationId}`);
+        updatePromises.push(
+          supabase
+            .from('donations_processing')
+            .update({ dp_status: 'released' })
+            .eq('id', donationId)
+        );
+
+        // Log the transaction as "Blood Out"
+        console.log(`Inserting "Blood Out" transaction for donation ID: ${donationId}`);
+        const insertData = {
+          reference_id: donorId, // Use the donor ID (dp_donor_id) as the reference_id
+          requestor_id: request.id, // Add the requestor_id (ID of the request in requests_processing)
+          blood_type: request.blood_type,
+          transaction_date: new Date().toISOString(),
+          donation_date: donationRecord.dp_donation_date,
+          expiration_date: donationRecord.dp_expiration_date,
+          transaction_type: 'Blood Out',
+        };
+
+        console.log('Inserting data into transactions_processing:', insertData);
+
+        // Validate that all required fields are present
+        if (!insertData.requestor_id) {
+          console.error('Requestor ID is missing in the insertData object.');
+          alert('Failed to log the transaction: Requestor ID is missing.');
+          return;
+        }
+
+        // Insert the transaction into the database
+        transactionPromises.push(
+          supabase.from('transactions_processing').insert(insertData).then(({ data, error }) => {
+            if (error) {
+              console.error('Error inserting transaction:', error.message || error);
+              throw new Error(`Failed to log the transaction: ${error.message || error}`);
+            }
+            console.log('Transaction logged successfully:', data);
+          })
+        );
+      }
+
+      // Execute all updates and inserts in parallel
+      console.log('Executing all update and insert promises...');
+      await Promise.all([...updatePromises, ...transactionPromises]);
+
+      // Update the request status to "accepted"
+      console.log(`Updating request status to "accepted" for request ID: ${request.id}`);
+      const { data: requestData, error: requestError } = await supabase
+        .from('requests_processing')
+        .update({ status: 'accepted' })
+        .eq('id', request.id);
+
+      if (requestError) {
+        console.error(`Error updating request status for request ID ${request.id}:`, requestError.message || requestError);
+        throw new Error(`Failed to update request status for request ID ${request.id}: ${requestError.message || requestError}`);
+      }
+
+      console.log(`Request accepted successfully for request ID: ${request.id}`);
+      alert('Request accepted successfully.');
+      closeReviewModal();
+      fetchRequests(); // Refresh the table
+    } catch (err) {
+      console.error('Error accepting request:', err.message || err);
+      alert(`An unexpected error occurred: ${err.message || err}`);
+    }
+  }
+
+  // Handle Deny Request
+  async function handleDenyRequest(request, reason) {
+    // Validate that a reason is provided
+    if (!reason) {
+      alert('Please provide a reason for denial.');
+      return;
+    }
+
+    if (request.status !== 'pending') {
+      alert('This request has already been processed and cannot be denied.');
+      return;
+    }
+
+    // Additional validation for "Other" reason
+    if (reason === 'Other' && !otherReason) {
+      alert('Please specify the reason for denial.');
+      return;
+    }
+
+    try {
+      // Combine the reason and otherReason if "Other" is selected
+      const rejectionReason = reason === 'Other' ? otherReason : reason;
+
+      // Update the request status and reason in the database
+      const { error } = await supabase
+        .from('requests_processing')
+        .update({ status: 'rejected', rejection_reason: rejectionReason })
+        .eq('id', request.id);
+
+      if (error) {
+        console.error('Error denying request:', error);
+        alert('An unexpected error occurred while denying the request.');
+        return;
+      }
+
+      alert('Request denied successfully.');
+      closeReviewModal();
+      fetchRequests(); // Refresh the table
+    } catch (err) {
+      console.error('Error denying request:', err);
+      alert('An unexpected error occurred while denying the request.');
+    }
+  }
 </script>
 
 <head>
@@ -310,77 +503,51 @@
       background: #741212;
     }
 
+    .donation-list {
+    max-height: 200px;
+    overflow-y: auto;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 10px;
+    background-color: #f9f9f9;
+  }
+
+  .donation-card {
+    padding: 10px;
+    margin-bottom: 5px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    background-color: #fff;
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .donation-card:hover {
+    transform: scale(1.02);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  }
+
+  .donation-card.selected {
+    border: 2px solid #28a745; /* Green border for selected card */
+    background-color: #e6f7ee; /* Light green background */
+  }
+
+  .donation-card.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .donation-card p {
+    margin: 0;
+    font-size: 14px;
+  }
+
     .login-btn {
       margin-left: auto;
     }
     @media screen and (max-width: 768px) {
       .login-btn {
         margin-left: 0;
-      }
-    }
-
-    .reqActions:hover {
-      background-color: #e3e3e8;
-    }
-
-    .modal {
-      display: none;
-      position: fixed;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      background-color: rgba(0, 0, 0, 0.5);
-      opacity: 0;
-      transition: opacity 0.3s ease-in-out;
-    }
-
-    .modal.open {
-      display: block;
-      opacity: 1;
-    }
-
-    .modal-content {
-      background-color: #fff;
-      border-radius: 8px;
-      overflow: hidden;
-      width: 60vw;
-      max-width: 50%;
-      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-      left: 25%;
-      top: 25%;
-      opacity: 0;
-      animation: modalFadeIn 0.3s ease-in-out forwards;
-    }
-
-    .modal-header {
-      background-color: #df3545;
-      padding: 10px;
-      display: flex;
-      justify-content: space-between;
-    }
-
-    .close {
-      font-size: 20px;
-      cursor: pointer;
-      border: none;
-      border-radius: 0.375rem;
-      background-color: #df3545;
-      color: white;
-      margin-left: 10px;
-    }
-
-    .modal-body {
-      padding: 20px;
-    }
-
-    @keyframes modalFadeIn {
-      from {
-        opacity: 0;
-        transform: translateY(-20px);
-      }
-      to {
-        opacity: 1;
-        transform: translateY(0);
       }
     }
   </style>
@@ -414,12 +581,6 @@
             <li class="nav-item">
               <a
                 class="nav-link nav-hover text-light"
-                href="/admin/dashboard/inventory">Inventory</a
-              >
-            </li>
-            <li class="nav-item">
-              <a
-                class="nav-link nav-hover text-light"
                 href="/admin/dashboard/bloodrequests">Blood Requests</a
               >
             </li>
@@ -427,18 +588,6 @@
               <a
                 class="nav-link nav-hover text-light"
                 href="/admin/dashboard/bloodtransac">Blood Transactions</a
-              >
-            </li>
-            <li class="nav-item">
-              <a
-                class="nav-link nav-hover text-light"
-                href="/admin/dashboard/bloodreqforms">Request Forms</a
-              >
-            </li>
-            <li class="nav-item">
-              <a
-                class="nav-link nav-hover text-light"
-                href="/admin/dashboard/donations">Donations</a
               >
             </li>
             <li class="nav-item">
@@ -471,281 +620,327 @@
   </header>
 
   <main>
-    <!--Main Content-->
+    <!-- Main Content -->
     <div class="content-wrapper" style="margin-top: 5rem;">
-      <!-- Transaction Section-->
-      <div>
-        <!--Blood Inventory-->
-        <div class="card mb-3 mx-1" id="blood-inventory">
-          <div class="card-header text-danger">
-            <i class="fa fa-droplet" /> Blood Request
-          </div>
-          <div class="card-body">
-            <div>
-              <input type="text" bind:value={searchTerm} on:input={search} placeholder="Search..." />
+      <!-- Blood Requests Card -->
+      <div class="card mb-3 mx-1">
+        <div class="card-header text-danger">
+          <i class="fa fa-tasks" /> Blood Requests
+        </div>
+        <div class="card-body">
+          <!-- Search Bar -->
+          <div class="mb-3 d-flex justify-content-between align-items-center">
+            <div class="search-bar">
+              <input
+                type="text"
+                placeholder="Search..."
+                bind:value={searchQuery}
+                class="form-control"
+              />
             </div>
-            <br>
-            <div class="table-responsive">
-              
-              <table
-                class="table table-bordered"
-                id="dataTable"
-                width="100%"
-                cellspacing="0"
-              >
-                <thead>
-                  <tr class="clearfix" style="">
-                    <th on:click={() => sortTable("id")}>Serial ID{sortColumn === "id"? sortDirection === 1? " ▲": " ▼": ""}</th>
-                    <th on:click={() => sortTable("patient_bloodtype")}>
-                      Patient Blood Type
-                      {sortColumn === "patient_bloodtype"
-                        ? sortDirection === 1
-                          ? " ▲"
-                          : " ▼"
-                        : ""}
-                    </th>
-                    <th on:click={() => sortTable("request_urgency")}>
-                      Urgency
-                      {sortColumn === "request_urgency"
-                        ? sortDirection === 1
-                          ? " ▲"
-                          : " ▼"
-                        : ""}
-                    </th>
-                    <th on:click={() => sortTable("request_quantity")}>
-                      Requested Quantity
-                      {sortColumn === "request_quantity"
-                        ? sortDirection === 1
-                          ? " ▲"
-                          : " ▼"
-                        : ""}
-                    </th>
-                    <th on:click={() => sortTable("request_date")}>
-                      Date Requested
-                      {sortColumn === "request_date"
-                        ? sortDirection === 1
-                          ? " ▲"
-                          : " ▼"
-                        : ""}
-                    </th>
-                    <th>Action</th>
+            <!-- Add Request Button -->
+            <button class="btn btn-danger" on:click={() => (showModal = true)}>
+              Request for Blood
+            </button>
+          </div>
+  
+          <!-- Table -->
+          <div class="table-responsive">
+            {#if isLoading}
+              <p>Loading...</p>
+            {:else}
+              <table class="table table-bordered table-hover">
+                <thead class="table-light">
+                  <tr>
+                    <th>Requester Name</th>
+                    <th>Blood Type</th>
+                    <th>Urgency</th>
+                    <th>Amount</th>
+                    <th>Status</th>
+                    <th>Actions</th>
                   </tr>
                 </thead>
-                <tfoot>
-                  <tr>
-                    <th>Serial ID</th>
-                    <th>Patient Blood Type</th>
-                    <th>Urgency</th>
-                    <th>Requested Quantity</th>
-                    <th>Date Requested</th>
-                    <th>Action</th>
-                  </tr>
-                </tfoot>
                 <tbody>
-                  {#each data as item (item.id)}
+                  {#each filteredRequests as request (request.id)}
                     <tr>
-                      <td>{item.id}</td>
-                      <td>{item.patient_bloodtype}</td>
-                      <td>{item.request_urgency}</td>
-                      <td>{item.request_quantity}</td>
-                      <td>{moment(item.request_date).format("L • hh:mma")}</td>
+                      <td>{request.requester_first_name} {request.requester_last_name}</td>
+                      <td>{request.blood_type}</td>
+                      <td>{request.urgency}</td>
+                      <td>{request.amount}</td>
+                      <td>{request.status}</td>
                       <td>
                         <button
-                          class="btn btn-danger rounded"
-                          on:click={() => openModal(item)}
+                          class="btn btn-sm btn-danger"
+                          on:click={() => openReviewModal(request)}
                         >
-                          Review Request
+                          Review
                         </button>
                       </td>
                     </tr>
                   {/each}
                 </tbody>
               </table>
-            </div>
+              {#if filteredRequests.length === 0}
+                <p class="text-center text-muted">No requests found.</p>
+              {/if}
+            {/if}
           </div>
-          <!--Modal-->
-          {#if isOpen}
-            <div class="modal open">
-              <div class="modal-content">
-                <div class="modal-header">
-                  <span
-                    style="margin-left: 10px; color: white; font-weight: bold;"
-                    >Request Details</span
-                  >
-                  <button class="close" on:click={closeModal}>&times;</button>
-                </div>
-                <div class="modal-body">
-                  {#if requestDetails}
-                    <div class="row">
-                      <!-- Patient Details -->
-                      <div class="col">
-                        <div class="d-flex flex-column">
-                          <span class="heading d-block fw-bold">Serial ID:</span
-                          >
-                          <span class="subheadings">{requestDetails.id}</span>
-                        </div>
-                      </div>
-                      <div class="col">
-                        <div class="d-flex flex-column">
-                          <span class="heading d-block fw-bold"
-                            >Patient Name:</span
-                          >
-                          <span class="subheadings"
-                            >{requestDetails.patient_name}</span
-                          >
-                        </div>
-                      </div>
-                      <div class="col">
-                        <div class="d-flex flex-column justify-content-center">
-                          <span class="heading d-block fw-bold">Diagnosis:</span
-                          >
-                          <span class="subheadings"
-                            >{requestDetails.patient_diagnosis}</span
-                          >
-                        </div>
-                      </div>
-                      <div class="col">
-                        <div class="d-flex flex-column">
-                          <span class="heading d-block fw-bold"
-                            >Blood Type:</span
-                          >
-                          <span class="subheadings"
-                            >{requestDetails.patient_bloodtype}</span
-                          >
-                        </div>
-                      </div>
-                    </div>
-                    <!-- Request Details -->
-                    <div class="row">
-                      <div class="col">
-                        <div class="d-flex flex-column">
-                          <span class="heading d-block fw-bold"
-                            >Request Purpose:</span
-                          >
-                          <span class="subheadings"
-                            >{requestDetails.request_purpose}</span
-                          >
-                        </div>
-                      </div>
-                      <div class="col">
-                        <div class="d-flex flex-column">
-                          <span class="heading d-block fw-bold"
-                            >Requested Bloodpack:</span
-                          >
-                          <span class="subheadings"
-                            >{requestDetails.request_bloodpack}</span
-                          >
-                        </div>
-                      </div>
-                      <div class="col">
-                        <div class="d-flex flex-column justify-content-center">
-                          <span class="heading d-block fw-bold">Urgency:</span>
-                          <span class="subheadings"
-                            >{requestDetails.request_urgency}</span
-                          >
-                        </div>
-                      </div>
-                      <div class="col">
-                        <div class="d-flex flex-column">
-                          <span class="heading d-block fw-bold"
-                            >Date Requested:</span
-                          >
-                          <span class="subheadings">
-                            {moment(requestDetails.request_date).format(
-                              "L • hh:mma"
-                            )}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                    <!-- Request Action -->
-                    <div class="row">
-                      <div class="col">
-                        <div class="d-flex flex-column">
-                          <span class="heading d-block fw-bold">Action:</span>
-                          <span class="subheadings">
-                            {#if !rowStatus.get(requestDetails.id)}
-                              <button
-                                class="btn"
-                                on:click={handleCheckButtonClick}
-                              >
-                                <i
-                                  class="fa-solid fa-square-check fs-3 text-success"
-                                />
-                              </button>
-                              <button
-                                class="btn"
-                                on:click={handleXMarkButtonClick}
-                              >
-                                <i
-                                  class="fa-solid fa-square-xmark fs-3 text-danger"
-                                />
-                              </button>
-                            {:else if rowStatus.get(requestDetails.id).action === "accept"}
-                              <p>Accepted</p>
-                            {:else if rowStatus.get(requestDetails.id).action === "reject"}
-                              <p>Denied!</p>
-                            {/if}
-                          </span>
-                        </div>
-                      </div>
-                      <div class="col">
-                        <div class="d-flex flex-column">
-                          <span class="heading d-block fw-bold">Remarks:</span>
-                          <span class="subheadings">
-                            {#if !rowStatus.get(requestDetails.id)}
-                              <form action="">
-                                <textarea
-                                  bind:value={remarks}
-                                  class="form-control"
-                                  style="min-width: 100%; resize:none"
-                                  placeholder="Additional remarks"
-                                />
-                              </form>
-                            {:else}
-                              <form action="">
-                                <textarea
-                                  bind:value={remarks}
-                                  class="form-control"
-                                  style="min-width: 100%; resize:none"
-                                  disabled
-                                  readonly
-                                />
-                              </form>
-                            {/if}
-                          </span>
-                        </div>
-                      </div>
-                      <div class="row">
-                        <div class="col">
-                          <div class="d-flex flex-column">
-                            <div class=" flex-wrap">
-                              <span class="heading d-block fw-bold"
-                                >Blood in Stock:</span>
-                              <div class="row">
-                                  <div class="col-sm">
-                                    <span class="me-3">
-                                      <span class="badge bg-danger"
-                                        >{requestDetails.patient_bloodtype}</span
-                                      >
-                                      <span class="badge bg-light text-dark"
-                                        >{bloodBags[bloodValuePair[requestDetails.patient_bloodtype]]}</span
-                                      >
-                                    </span>
-                                  </div>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  {/if}
-                </div>
-              </div>
-            </div>
-          {/if}
         </div>
       </div>
+
+      {#if reviewModal && selectedRequest}
+        <div class="modal show d-block" tabindex="-1" role="dialog">
+          <div class="modal-dialog modal-lg" role="document">
+            <div class="modal-content">
+              <div class="modal-header">
+                <h5 class="modal-title">Review Request</h5>
+                <button
+                  type="button"
+                  class="btn-close"
+                  aria-label="Close"
+                  on:click={() => (reviewModal = false)}
+                ></button>
+              </div>
+              <div class="modal-body">
+                <!-- Requester Details -->
+                <h6>Requester Details</h6>
+                {#if selectedRequest.image}
+                  <img src={selectedRequest.image} alt="Requester Image" class="img-fluid" style="max-width: 100px;" />
+                {:else}
+                  <p>No Image Available</p>
+                {/if}
+                <p><strong>Name:</strong> {selectedRequest.requester_first_name} {selectedRequest.requester_last_name}</p>
+                <p><strong>Blood Type:</strong> {selectedRequest.blood_type}</p>
+                <p><strong>Urgency:</strong> {selectedRequest.urgency}</p>
+                <p><strong>Purpose:</strong> {selectedRequest.purpose}</p>
+                <p><strong>Amount:</strong> {selectedRequest.amount} bags</p>
+                <hr />
+                <!-- Display Rejection Reason if Denied -->
+                {#if selectedRequest.status === 'rejected'}
+                  <p><strong>Rejection Reason:</strong> {selectedRequest.rejection_reason}</p>
+                {/if}
+                <!-- Action Buttons -->
+                {#if selectedRequest.status === 'pending'}
+                  <div class="d-flex justify-content-between mt-3">
+                    <button
+                      class="btn btn-success"
+                      on:click={openAcceptSection}
+                    >
+                      Accept
+                    </button>
+                    <button
+                      class="btn btn-danger"
+                      on:click={openDenySection}
+                    >
+                      Deny
+                    </button>
+                  </div>
+                {:else}
+                  <p>This request has already been processed and cannot be modified.</p>
+                {/if}
+
+                <!-- Extended Section for Accept -->
+                {#if isAcceptExpanded}
+                  <div class="mt-3">
+                    <h6>Select Donations ({selectedDonationId.length}/{selectedRequest.amount})</h6>
+                    {#if availableDonations.length > 0}
+                      <div class="donation-list">
+                        {#each availableDonations as donation (donation.id)}
+                          <div
+                            class="donation-card {selectedDonationId.includes(donation.id) ? 'selected' : ''}"
+                            on:click={() => toggleDonationSelection(donation.id)}
+                          >
+                            <p><strong>Donor ID:</strong> {donation.dp_donor_id}</p>
+                            <p><strong>Blood Type:</strong> {donation.dp_blood_type}</p>
+                            <p><strong>Donation Date:</strong> {new Date(donation.dp_donation_date).toLocaleDateString()}</p>
+                            <p><strong>Expiration Date:</strong> {new Date(donation.dp_expiration_date).toLocaleDateString()}</p>
+                            <p><strong>Status:</strong> {donation.dp_status}</p>
+                          </div>
+                        {/each}
+                      </div>
+                    {:else}
+                      <p>No available donations for this blood type.</p>
+                    {/if}
+                    <div class="d-flex justify-content-end mt-3">
+                      <button
+                        class="btn btn-success"
+                        on:click={() => handleAcceptRequest(selectedRequest, selectedDonationId)}
+                        disabled={selectedDonationId.length !== selectedRequest.amount}
+                      >
+                        Confirm
+                      </button>
+                      <button
+                        class="btn btn-secondary ms-2"
+                        on:click={() => (isAcceptExpanded = false)}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                {/if}
+
+                <!-- Extended Section for Deny -->
+                {#if isDenyExpanded}
+                  <div class="mt-3">
+                    <h6>Reason for Denial</h6>
+                    <select bind:value={denialReason} class="form-select">
+                      <option value="">-- Select Reason --</option>
+                      <option value="No Blood Stock">No Blood Stock</option>
+                      <option value="Health Reasons">Health Reasons</option>
+                      <option value="Other">Other</option>
+                    </select>
+                    {#if denialReason === 'Other'}
+                      <div class="mt-3">
+                        <label class="form-label">Please Specify</label>
+                        <input
+                          type="text"
+                          bind:value={otherReason}
+                          class="form-control"
+                        />
+                      </div>
+                    {/if}
+                    <div class="d-flex justify-content-end mt-3">
+                      <button
+                        class="btn btn-danger"
+                        on:click={() => {
+                          if (denialReason === 'Other' && !otherReason) {
+                            alert('Please specify the reason for denial.');
+                            return;
+                          }
+                          handleDenyRequest(selectedRequest, denialReason === 'Other' ? otherReason : denialReason);
+                        }}
+                      >
+                        Confirm
+                      </button>
+                      <button
+                        class="btn btn-secondary ms-2"
+                        on:click={() => (isDenyExpanded = false)}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                {/if}
+              </div>
+              <div class="modal-footer">
+                <button
+                  type="button"
+                  class="btn btn-secondary"
+                  on:click={() => (reviewModal = false)}
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      {/if}
+
+      <!-- Modal Backdrop -->
+      {#if reviewModal}
+        <div class="modal-backdrop show"></div>
+      {/if}
+  
+      <!-- Blood Request Modal -->
+      {#if showModal}
+        <div class="modal show d-block" tabindex="-1" role="dialog">
+          <div class="modal-dialog modal-lg" role="document">
+            <div class="modal-content">
+              <div class="modal-header">
+                <h5 class="modal-title">Request for Blood</h5>
+                <button
+                  type="button"
+                  class="btn-close"
+                  aria-label="Close"
+                  on:click={() => (showModal = false)}
+                ></button>
+              </div>
+              <div class="modal-body">
+                <form on:submit|preventDefault={handleSubmit}>
+                  <div class="mb-3">
+                    <label class="form-label">First Name</label>
+                    <input
+                      type="text"
+                      bind:value={newRequest.requester_first_name}
+                      class="form-control"
+                      required
+                    />
+                  </div>
+                  <div class="mb-3">
+                    <label class="form-label">Last Name</label>
+                    <input
+                      type="text"
+                      bind:value={newRequest.requester_last_name}
+                      class="form-control"
+                      required
+                    />
+                  </div>
+                  <div class="mb-3">
+                    <label class="form-label">Birthdate</label>
+                    <input
+                      type="date"
+                      bind:value={newRequest.birthdate}
+                      class="form-control"
+                      required
+                    />
+                  </div>
+                  <div class="mb-3">
+                    <label class="form-label">Blood Type</label>
+                    <select bind:value={newRequest.blood_type} class="form-select" required>
+                      <option value="A+">A+</option>
+                      <option value="A-">A-</option>
+                      <option value="B+">B+</option>
+                      <option value="B-">B-</option>
+                      <option value="AB+">AB+</option>
+                      <option value="AB-">AB-</option>
+                      <option value="O+">O+</option>
+                      <option value="O-">O-</option>
+                    </select>
+                  </div>
+                  <div class="mb-3">
+                    <label class="form-label">Image (Optional)</label>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      on:change={handleImageUpload}
+                      class="form-control"
+                    />
+                  </div>
+                  <div class="mb-3">
+                    <label class="form-label">Purpose of Request</label>
+                    <textarea
+                      bind:value={newRequest.purpose}
+                      class="form-control"
+                      rows="3"
+                      required
+                    ></textarea>
+                  </div>
+                  <div class="mb-3">
+                    <label class="form-label">Urgency Level</label>
+                    <select bind:value={newRequest.urgency} class="form-select" required>
+                      <option value="Low">Low</option>
+                      <option value="Medium">Medium</option>
+                      <option value="High">High</option>
+                    </select>
+                  </div>
+                  <div class="mb-3">
+                    <label class="form-label">Amount (per bag)</label>
+                    <input
+                      type="number"
+                      bind:value={newRequest.amount}
+                      class="form-control"
+                      min="1"
+                      required
+                    />
+                  </div>
+                  <button type="submit" class="btn btn-danger">Submit Request</button>
+                </form>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-backdrop show"></div>
+      {/if}
     </div>
   </main>
 </body>

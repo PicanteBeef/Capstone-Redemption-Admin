@@ -7,6 +7,7 @@
 
     let transactions = [];
     let filteredTransactions = [];
+    let selectedTransaction = null;
     let isLoading = true;
     let showModal = false; // Controls the visibility of the modal
     let selectedDonor = null; // Stores the selected donor's data for the modal
@@ -149,14 +150,42 @@
       fetchTransactions();
     });
 
-    // Open the modal and populate it with the selected donor's data
-    async function openModal(transaction) {
-      const donor = await fetchDonorDetails(transaction.reference_id);
-      if (donor) {
-        selectedDonor = mapDonorData(donor); // Map donor data to the local structure
+    async function openTransactionDetails(transaction) {
+      try {
+        // Fetch donor details
+        const donor = await fetchDonorDetails(transaction.reference_id);
+        if (!donor) {
+          alert('Failed to load donor details.');
+          return;
+        }
+
+        // Initialize requestor as null
+        let requestor = null;
+
+        // Fetch requestor details if transaction type is 'Blood Out'
+        if (transaction.transaction_type === 'Blood Out') {
+          requestor = await fetchRequestorDetails(transaction.requestor_id); // Fetch requestor details
+          if (!requestor) {
+            alert('Failed to load requestor details.');
+            return;
+          }
+        }
+
+        // Set the selected transaction with donor and requestor details
+        selectedTransaction = {
+          transactionType: transaction.transaction_type,
+          donor: mapDonorData(donor), // Map donor data
+          requestor: requestor ? mapRequestorData(requestor) : null, // Map requestor data
+          requestedDate: transaction.transaction_date, // Date of the transaction
+          reasonOfRequest: transaction.reason_of_request || 'Not specified', // Reason for the request
+          status: transaction.status || 'pending', // Status of the transaction
+        };
+
+        // Show the modal
         showModal = true;
-      } else {
-        alert('Donor details could not be loaded.');
+      } catch (err) {
+        console.error('Error opening transaction details:', err.message || err);
+        alert('An unexpected error occurred.');
       }
     }
 
@@ -195,6 +224,42 @@
       }
     }
 
+    // Fetch requestor details from the requests_processing table
+    async function fetchRequestorDetails(requestId) {
+      try {
+        // Validate that requestId is provided
+        if (!requestId) {
+          console.error('Request ID is missing or undefined.');
+          alert('Failed to load requestor details: Request ID is missing.');
+          return null;
+        }
+
+        console.log('Fetching requestor details for ID:', requestId);
+
+        // Query the requests_processing table using Supabase
+        const { data, error } = await supabase
+          .from('requests_processing') // Table name
+          .select('*') // Select all columns (you can specify only needed fields for optimization)
+          .eq('id', requestId) // Match the request ID
+          .single(); // Expect a single record
+
+        // Handle errors
+        if (error) {
+          console.error('Error fetching requestor details:', error.message || error);
+          alert('Failed to load requestor details.');
+          return null;
+        }
+
+        // Return the fetched data
+        console.log('Fetched requestor details:', data);
+        return data;
+      } catch (err) {
+        console.error('Unexpected error:', err.message || err);
+        alert('An unexpected error occurred while loading requestor details.');
+        return null;
+      }
+    }
+
     // Map raw donor data to the local structure
     function mapDonorData(donor) {
       return {
@@ -225,6 +290,24 @@
             responses: donor.dp_screening_responses || {}
           }
         }
+      };
+    }
+
+    // Helper function to map raw requestor data to the local structure
+    function mapRequestorData(requestor) {
+      return {
+        id: requestor.id || 'unknown', // Unique identifier
+        firstName: requestor.requester_first_name || 'Unknown', // First name
+        lastName: requestor.requester_last_name || 'Unknown', // Last name
+        bloodType: requestor.blood_type || 'Unknown', // Blood type
+        birthdate: requestor.birthdate || null, // Birthdate
+        age: requestor.birthdate ? calculateAge(requestor.birthdate) : null, // Calculate age
+        image: requestor.image || null, // Profile image URL
+        purpose: requestor.purpose || 'Not specified', // Purpose of the request
+        urgency: requestor.urgency || 'Low', // Urgency level
+        amount: requestor.amount || 0, // Number of blood bags requested
+        status: requestor.status || 'pending', // Status of the request
+        createdAt: requestor.created_at || null, // Timestamp of when the request was created
       };
     }
 
@@ -386,12 +469,6 @@
               <li class="nav-item">
                 <a
                   class="nav-link nav-hover text-light"
-                  href="/admin/dashboard/inventory">Inventory</a
-                >
-              </li>
-              <li class="nav-item">
-                <a
-                  class="nav-link nav-hover text-light"
                   href="/admin/dashboard/bloodrequests">Blood Requests</a
                 >
               </li>
@@ -400,12 +477,6 @@
                   class="nav-link nav-hover text-light"
                   href="/admin/dashboard/bloodtransac">Blood Transactions</a
                 >
-              </li>
-              <li class="nav-item">
-                <a class="nav-link nav-hover text-light" href="/admin/dashboard/bloodreqforms">Request Forms</a>
-              </li>
-              <li class="nav-item">
-                <a class="nav-link nav-hover text-light" href="/admin/dashboard/donations">Donations</a>
               </li>
               <li class="nav-item">
                 <a
@@ -544,7 +615,7 @@
                             <!-- Action Button -->
                             <button
                               class="btn btn-sm btn-danger"
-                              on:click={() => openModal(transaction)}
+                              on:click={() => openTransactionDetails(transaction)}
                             >
                               View Details
                             </button>
@@ -563,12 +634,12 @@
           </div>
     
           <!-- Modal for Donor Details -->
-          {#if showModal && selectedDonor}
+          {#if showModal && selectedTransaction}
             <div class="modal show d-block" tabindex="-1" role="dialog">
               <div class="modal-dialog modal-lg" role="document">
                 <div class="modal-content">
                   <div class="modal-header">
-                    <h5 class="modal-title">Donor Details</h5>
+                    <h5 class="modal-title">Transaction Details</h5>
                     <button
                       type="button"
                       class="btn-close"
@@ -577,12 +648,14 @@
                     ></button>
                   </div>
                   <div class="modal-body">
+                    <!-- Donor Details -->
+                    <h6>Donor Details</h6>
                     <div class="row">
                       <div class="col-md-4 text-center">
                         <!-- Donor Image -->
-                        {#if selectedDonor.image}
+                        {#if selectedTransaction.donor.image}
                           <img
-                            src={selectedDonor.image}
+                            src={selectedTransaction.donor.image}
                             alt="Donor Image"
                             class="img-fluid rounded-circle"
                           />
@@ -592,15 +665,45 @@
                       </div>
                       <div class="col-md-8">
                         <!-- Donor Information -->
-                        <p><strong>Name:</strong> {selectedDonor.firstName} {selectedDonor.lastName}</p>
-                        <p><strong>Blood Type:</strong> {selectedDonor.bloodType}</p>
-                        <p><strong>Birthdate:</strong> {new Date(selectedDonor.birthdate).toLocaleDateString()}</p>
-                        <p><strong>Age:</strong> {calculateAge(selectedDonor.birthdate)}
-                        <p><strong>Donation Date:</strong> {new Date(selectedDonor.donationDate).toLocaleDateString()}</p>
-                        <p><strong>Expiration Date:</strong> {new Date(selectedDonor.expirationDate).toLocaleDateString()}</p>
-                        <p><strong>Status:</strong> {selectedDonor.status}</p>
+                        <p><strong>Name:</strong> {selectedTransaction.donor.firstName} {selectedTransaction.donor.lastName}</p>
+                        <p><strong>Blood Type:</strong> {selectedTransaction.donor.bloodType}</p>
+                        <p><strong>Birthdate:</strong> {new Date(selectedTransaction.donor.birthdate).toLocaleDateString()}</p>
+                        <p><strong>Age:</strong> {calculateAge(selectedTransaction.donor.birthdate)}</p>
+                        <p><strong>Donation Date:</strong> {new Date(selectedTransaction.donor.donationDate).toLocaleDateString()}</p>
+                        <p><strong>Expiration Date:</strong> {new Date(selectedTransaction.donor.expirationDate).toLocaleDateString()}</p>
+                        <p><strong>Status:</strong> {selectedTransaction.donor.status}</p>
                       </div>
                     </div>
+
+                    <!-- Requestor Details (Only for Blood Out) -->
+                    {#if selectedTransaction.transactionType === 'Blood Out'}
+                      <hr />
+                      <h6>Requestor Details</h6>
+                      <div class="row">
+                        <div class="col-md-4 text-center">
+                          <!-- Requestor Image -->
+                          {#if selectedTransaction.requestor.image}
+                            <img
+                              src={selectedTransaction.requestor.image}
+                              alt="Requestor Image"
+                              class="img-fluid rounded-circle"
+                            />
+                          {:else}
+                            <p>No Image Available</p>
+                          {/if}
+                        </div>
+                        <div class="col-md-8">
+                          <!-- Requestor Information -->
+                          <p><strong>Name:</strong> {selectedTransaction.requestor.firstName} {selectedTransaction.requestor.lastName}</p>
+                          <p><strong>Blood Type:</strong> {selectedTransaction.requestor.bloodType}</p>
+                          <p><strong>Birthdate:</strong> {new Date(selectedTransaction.requestor.birthdate).toLocaleDateString()}</p>
+                          <p><strong>Age:</strong> {calculateAge(selectedTransaction.requestor.birthdate)}</p>
+                          <p><strong>Requested Date:</strong> {new Date(selectedTransaction.requestedDate).toLocaleDateString()}</p>
+                          <p><strong>Reason of Request:</strong> {selectedTransaction.reasonOfRequest || 'Not specified'}</p>
+                          <p><strong>Status:</strong> {selectedTransaction.status}</p>
+                        </div>
+                      </div>
+                    {/if}
                   </div>
                   <div class="modal-footer">
                     <button
