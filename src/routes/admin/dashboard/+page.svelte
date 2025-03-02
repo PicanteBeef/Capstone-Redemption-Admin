@@ -2,20 +2,36 @@
   import { onMount } from "svelte";
   import { goto } from "$app/navigation";
   import { supabase } from "/src/lib/supabaseClient.js";
-  import moment from "moment";
+  import { authStore } from "/src/lib/authStore.js";
   import { browser } from '$app/environment';
   import Chart from "chart.js/auto";
 
-  const authLogout = async () => {
-    const { error } = await supabase.auth.signOut();
+  const logout = async () => {
+    try {
+      // Sign out using Supabase
+      const { error } = await supabase.auth.signOut();
 
-    if (error) {
-      console.error("Logout error:", error.message);
-    } else {
-      console.log("Logged out");
-      goto("/");
-      alert("You have been logged out.");
-      // Redirect or perform other actions after successful logout
+      if (error) {
+        console.error('Logout error:', error.message);
+        return;
+      }
+
+      // Manually clear cookies
+      document.cookie.split(";").forEach((c) => {
+        document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
+      });
+
+      // Update authStore
+      authStore.update((state) => ({
+        ...state,
+        user: null,
+        isAuthenticated: false,
+      }));
+
+      console.log('User logged out successfully.');
+      goto('/');
+    } catch (err) {
+      console.error('Unexpected logout error:', err.message);
     }
   };
 
@@ -477,6 +493,8 @@
 
   console.log(totalSum);
 
+  
+
   //Donation List
   let selectedDonor = null;  // <-- Initialize as null
   let selectedPhase = "";
@@ -552,6 +570,7 @@
     lastName: '',
     bloodType: '',
     birthdate: '',
+    sex: '',
     image: '',
     phases: {
       history: { status: 'pending', responses: {} },
@@ -565,9 +584,10 @@
   const questionnaire = {
     history: [
       {
-        type: 'checkbox',
+        type: 'radio', // Use radio buttons for Yes/No
         label: 'Have you ever been diagnosed with a blood disorder?',
         name: 'blood_disorder',
+        options: ['Yes', 'No'], // Options for the radio buttons
         followUp: {
           type: 'text',
           label: 'If yes, please specify:',
@@ -576,9 +596,10 @@
         }
       },
       {
-        type: 'checkbox',
+        type: 'radio',
         label: 'Do you have any allergies?',
         name: 'allergies',
+        options: ['Yes', 'No'], // Options for the radio buttons
         followUp: {
           type: 'text',
           label: 'If yes, please specify:',
@@ -587,9 +608,10 @@
         }
       },
       {
-        type: 'checkbox',
+        type: 'radio',
         label: 'Are you taking any medications?',
         name: 'medication',
+        options: ['Yes', 'No'], // Options for the radio buttons
         followUp: {
           type: 'text',
           label: 'If yes, please specify:',
@@ -655,13 +677,6 @@
       },
       {
         type: 'text',
-        label: 'Hemoglobin Level:',
-        name: 'hemoglobin_level',
-        placeholder: 'g/dL',
-        required: true
-      },
-      {
-        type: 'text',
         label: 'Weight:',
         name: 'weight',
         placeholder: 'in kg',
@@ -669,8 +684,24 @@
       }
     ],
     laboratory: [
-      { type: 'text', label: 'Hemoglobin Count:', name: 'lab_hemoglobin' },
-      { type: 'text', label: 'Platelet Count:', name: 'lab_platelet' }
+      {
+        type: 'text',
+        label: 'Hemoglobin Level:',
+        name: 'lab_hemoglobin',
+        placeholder: 'e.g., 12.5 g/dL',
+        required: true,
+        pattern: /^\d+(\.\d+)?\s*g\/dL$/i, // Regex to validate "number g/dL"
+        errorMessage: 'Please enter a valid hemoglobin level (e.g., 12.5 g/dL).'
+      },
+      {
+        type: 'text',
+        label: 'Hematocrit Level:',
+        name: 'lab_hematocrit',
+        placeholder: 'e.g., 36%',
+        required: true,
+        pattern: /^\d+(\.\d+)?%$/i, // Regex to validate "number%"
+        errorMessage: 'Please enter a valid hematocrit level (e.g., 36%).'
+      }
     ],
     processing: [
       { type: 'radio', label: 'HIV-1:', name: 'hiv1', options: ['Positive', 'Negative'] },
@@ -703,6 +734,7 @@
   function handleInputChange(event) {
     const { name, value, type, checked } = event.target;
 
+    // Update the responses object
     if (type === 'checkbox') {
       responses[name] = checked; // Save checkbox state
     } else if (!isNaN(value) && value.trim() !== '') {
@@ -711,7 +743,14 @@
       responses[name] = value; // Save text inputs as-is
     }
 
-    console.log('Updated Responses:', responses); // Debugging
+    // Save responses to the donor's data dynamically
+    if (selectedDonor && selectedPhase) {
+      const donor = donors.find(d => d.id === selectedDonor.id);
+      if (donor) {
+        donor.phases[selectedPhase].responses = { ...responses };
+        console.log('Responses saved to donor data:', donor.phases[selectedPhase].responses);
+      }
+    }
   }
 
   // Open questionnaire modal and pre-fill responses
@@ -734,6 +773,13 @@
     if (!donor || !selectedPhase) {
       console.error('Error: Selected donor or phase is undefined.');
       alert('Failed to update phase status. Please select a donor and phase.');
+      return;
+    }
+
+    // Validate the current phase
+    const validation = validatePhase(selectedPhase, donor);
+    if (!validation.valid) {
+      alert(validation.message); // Show error message
       return;
     }
 
@@ -782,16 +828,27 @@
 
   // Validate phase responses
   function validatePhase(phaseName, donor) {
+    // Ensure donor and phases exist
+    if (!donor || !donor.phases) {
+      return { valid: false, message: 'Invalid donor data.' };
+    }
+
     const phaseData = donor.phases[phaseName];
+    if (!phaseData) {
+      return { valid: false, message: `Phase "${phaseName}" not found for the donor.` };
+    }
 
     // Check if all prior phases are completed
     const phaseOrder = ['history', 'laboratory', 'processing', 'screening'];
     const currentIndex = phaseOrder.indexOf(phaseName);
 
-    // Ensure all prior phases are completed
+    if (currentIndex === -1) {
+      return { valid: false, message: `Unknown phase: ${phaseName}` };
+    }
+
     for (let i = 0; i < currentIndex; i++) {
       const priorPhase = phaseOrder[i];
-      if (donor.phases[priorPhase].status !== 'completed') {
+      if (!donor.phases[priorPhase] || donor.phases[priorPhase].status !== 'completed') {
         return {
           valid: false,
           message: `Cannot complete ${phaseName} because ${priorPhase} is not completed.`
@@ -801,16 +858,18 @@
 
     // Validate the current phase
     switch (phaseName) {
-      case 'history':
-        const historyResponses = phaseData.responses;
+      case 'history': {
+        const historyResponses = phaseData.responses || {};
+        if (!questionnaire.history) {
+          return { valid: false, message: 'History questionnaire not defined.' };
+        }
 
-        // Ensure all required questions are answered
         const missingQuestions = questionnaire.history.filter(question => {
           const response = historyResponses[question.name];
           if (question.type === 'checkbox') {
-            return response === undefined;
+            return response === undefined; // Ensure a selection is made
           }
-          return response === undefined || response === '';
+          return response === undefined || response === ''; // Handle other input types
         });
 
         if (missingQuestions.length > 0) {
@@ -820,53 +879,66 @@
           };
         }
         return { valid: true };
+      }
 
-      case 'laboratory':
-        // Ensure hemoglobin and platelet counts are within acceptable ranges
-        const hemoglobin = parseFloat(phaseData.responses.lab_hemoglobin || '');
-        const platelet = parseFloat(phaseData.responses.lab_platelet || '');
+      case 'laboratory': {
+        const labResponses = phaseData.responses || {};
+        const labSex = selectedDonor.dp_sex; // Get the donor's sex from their data
+        const hemoglobin = parseFloat(labResponses.lab_hemoglobin || '');
+        const hematocrit = parseFloat(labResponses.lab_hematocrit || '');
 
-        if (isNaN(hemoglobin) || hemoglobin < 12.5) {
+        // Define minimum thresholds based on sex
+        const minHemoglobin = labSex === 'Female' ? 12.5 : 13.0;
+        const minHematocrit = labSex === 'Female' ? 36 : 39;
+
+        if (isNaN(hemoglobin) || hemoglobin < minHemoglobin) {
           return {
             valid: false,
             message: 'Cannot complete Laboratory phase. Hemoglobin level criteria not met.'
           };
         }
-        if (isNaN(platelet) || platelet <= 0) {
+
+        if (isNaN(hematocrit) || hematocrit < minHematocrit) {
           return {
             valid: false,
-            message: 'Cannot complete Laboratory phase. Platelet count criteria not met.'
+            message: 'Cannot complete Laboratory phase. Hematocrit level criteria not met.'
           };
         }
-        return { valid: true };
 
-      case 'processing':
-        // Ensure all TTIs are negative
-        const processingResponses = phaseData.responses;
+        return { valid: true };
+      }
+
+      case 'processing': {
+        const processingResponses = phaseData.responses || {};
 
         if (
-          processingResponses.hiv1 !== 'Negative' ||
-          processingResponses.hiv2 !== 'Negative' ||
-          processingResponses.hepatitis_b !== 'Negative' ||
-          processingResponses.hepatitis_c !== 'Negative' ||
-          processingResponses.syphilis !== 'Negative'
+          processingResponses.hiv1?.toLowerCase() !== 'negative' ||
+          processingResponses.hiv2?.toLowerCase() !== 'negative' ||
+          processingResponses.hepatitis_b?.toLowerCase() !== 'negative' ||
+          processingResponses.hepatitis_c?.toLowerCase() !== 'negative' ||
+          processingResponses.syphilis?.toLowerCase() !== 'negative'
         ) {
           return {
             valid: false,
             message: 'Cannot complete Processing phase. All TTIs must be Negative.'
           };
         }
-        return { valid: true };
 
-      case 'screening':
-        // Ensure donor consent and medical clearance are confirmed
-        if (phaseData.responses.medical_clearance !== true) {
+        return { valid: true };
+      }
+
+      case 'screening': {
+        const screeningResponses = phaseData.responses || {};
+
+        if (screeningResponses.medical_clearance !== true) {
           return {
             valid: false,
             message: 'Cannot complete Screening phase. Medical clearance must be confirmed.'
           };
         }
+
         return { valid: true };
+      }
 
       default:
         return { valid: false, message: 'Unknown phase.' };
@@ -938,6 +1010,7 @@
         dp_last_name: newDonor.lastName,
         dp_blood_type: newDonor.bloodType,
         dp_birthdate: newDonor.birthdate,
+        dp_sex: newDonor.sex,
         dp_profile_image: newDonor.image || null,
         dp_history_responses: {},
         dp_laboratory_responses: {},
@@ -985,6 +1058,7 @@
         lastName: '',
         bloodType: '',
         birthdate: '',
+        sex: '',
         image: '',
         phases: {
           history: { status: 'pending', responses: {} },
@@ -1453,7 +1527,7 @@ function selectDonor(donorId) {
             <a
               href="/"
               style="font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;font-weight: bold;"
-              class="btn btn-danger">Logout</a
+              class="btn btn-danger" on:click={logout}>Logout</a
             >
           </div>
         </div>
@@ -1522,6 +1596,13 @@ function selectDonor(donorId) {
                     <div class="mb-3">
                       <label class="form-label">Birthdate</label>
                       <input type="date" class="form-control" bind:value={newDonor.birthdate} required>
+                    </div>
+                    <div class="mb-3">
+                      <label class="form-label">Sex</label>
+                      <select class="form-select" bind:value={newDonor.sex}>
+                        <option value="male">Male</option>
+                        <option value="female">Female</option>
+                      </select>
                     </div>
                     <div class="mb-3">
                       <label class="form-label">Upload Image</label>
@@ -1602,6 +1683,12 @@ function selectDonor(donorId) {
                         <div class="mb-3">
                           <label class="form-label fw-bold">Birthdate</label>
                           <p class="form-control-static">{new Date(selectedDonor.birthdate).toLocaleDateString()}</p>
+                        </div>
+                      </div>
+                      <div class="col-md-6">
+                        <div class="mb-3">
+                          <label class="form-label fw-bold">Sex</label>
+                          <p class="form-control-static">{selectedDonor.sex}</p>
                         </div>
                       </div>
                       <div class="col-md-6">
@@ -1700,18 +1787,6 @@ function selectDonor(donorId) {
                           <div class="mb-3">
                             <label class="form-label fw-bold">Pulse Rate</label>
                               <p class="form-control-static">{selectedDonor.phases.history.responses.pulse_rate} BPM</p>
-                          </div>
-                        </div>
-                        <div class="col-md-6">
-                          <div class="mb-3">
-                            <label class="form-label fw-bold">Hemoglobin Level</label>
-                            <p class="form-control-static">
-                              {#if selectedDonor.phases?.laboratory?.responses?.lab_hemoglobin !== undefined}
-                                {selectedDonor.phases.laboratory.responses.lab_hemoglobin}
-                              {:else}
-                                Pending results.
-                              {/if}
-                            </p>
                           </div>
                         </div>
                         <div class="col-md-6">
@@ -2005,20 +2080,25 @@ function selectDonor(donorId) {
                                 class="form-control"
                                 name={question.name}
                                 value={responses[question.name] || ''}
-                                on:input={handleInputChange}
+                                on:input={(event) => handleInputChange(event, question)}
                               />
-                            {:else if question.type === 'checkbox'}
-                              <input
-                                type="checkbox"
-                                name={question.name}
-                                checked={responses[question.name] || false}
-                                on:change={(event) => {
-                                  handleInputChange(event);
-                                  responses[question.name] = event.target.checked;
-                                }}
-                              />
+                              {:else if question.type === 'radio'}
+                                {#each question.options as option}
+                                  <div class="form-check">
+                                    <input
+                                      type="radio"
+                                      class="form-check-input"
+                                      name={question.name}
+                                      value={option}
+                                      checked={responses[question.name] === option}
+                                      on:change={handleInputChange}
+                                    />
+                                    <label class="form-check-label">{option}</label>
+                                  </div>
+                                {/each}
+
                               <!-- Follow-up field -->
-                              {#if responses[question.name] && question.followUp}
+                              {#if responses[question.name] === 'Yes' && question.followUp}
                                 <div class="mt-2">
                                   <label class="form-label">{question.followUp.label}</label>
                                   {#if question.followUp.type === 'text'}
@@ -2032,20 +2112,6 @@ function selectDonor(donorId) {
                                   {/if}
                                 </div>
                               {/if}
-                            {:else if question.type === 'radio'}
-                              {#each question.options as option}
-                                <div class="form-check">
-                                  <input
-                                    type="radio"
-                                    class="form-check-input"
-                                    name={question.name}
-                                    value={option}
-                                    checked={responses[question.name] === option}
-                                    on:change={handleInputChange}
-                                  />
-                                  <label class="form-check-label">{option}</label>
-                                </div>
-                              {/each}
                             {:else if question.type === 'select'}
                               <select class="form-select" name={question.name} on:change={handleInputChange}>
                                 {#each question.options as option}
