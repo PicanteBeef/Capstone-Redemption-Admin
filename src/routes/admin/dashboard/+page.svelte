@@ -54,6 +54,7 @@
       lastName: donor.dp_last_name || 'Unknown',
       bloodType: donor.dp_blood_type || 'Unknown',
       birthdate: donor.dp_birthdate || null,
+      sex: donor.dp_sex || null,
       image: donor.dp_profile_image || null,
       dp_donor_id: donor.dp_donor_id || donor.id,
       donationDate: donor.dp_donation_date || null,
