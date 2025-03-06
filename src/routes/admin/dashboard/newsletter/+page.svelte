@@ -3,7 +3,7 @@
     
     // Initialize Contentful Client
     const contentfulClient = createClient({
-      accessToken: import.meta.env.VITE_CONTENTFUL_MANAGEMENT_TOKEN, // Replace with your Content Management API Token
+      accessToken: process.env.VITE_CONTENTFUL_MANAGEMENT_TOKEN || import.meta.env.VITE_CONTENTFUL_MANAGEMENT_TOKEN,
     });
     
     // Form data state
@@ -28,7 +28,7 @@ async function handleImageUpload(event) {
     try {
         console.log('Selected file:', file); // Debug: Log the file to check its details
 
-        const space = await contentfulClient.getSpace(import.meta.env.VITE_CONTENTFUL_SPACE_ID); // Replace with your Contentful Space ID
+        const space = await contentfulClient.getSpace(process.env.VITE_CONTENTFUL_SPACE_ID ||import.meta.env.VITE_CONTENTFUL_SPACE_ID); // Replace with your Contentful Space ID
         const environment = await space.getEnvironment('master');
 
         // 1. Upload the image to Contentful

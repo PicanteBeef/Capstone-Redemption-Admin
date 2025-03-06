@@ -652,10 +652,10 @@
               <table class="table table-bordered table-hover">
                 <thead class="table-light">
                   <tr>
-                    <th>Requester Name</th>
+                    <th>Patient Name</th>
                     <th>Blood Type</th>
                     <th>Urgency</th>
-                    <th>Amount</th>
+                    <th>Units</th>
                     <th>Status</th>
                     <th>Actions</th>
                   </tr>
@@ -703,7 +703,7 @@
               </div>
               <div class="modal-body">
                 <!-- Requester Details -->
-                <h6>Requester Details</h6>
+                <h6>Patient Details</h6>
                 {#if selectedRequest.image}
                   <img src={selectedRequest.image} alt="Requester Image" class="img-fluid" style="max-width: 100px;" />
                 {:else}
@@ -713,7 +713,7 @@
                 <p><strong>Blood Type:</strong> {selectedRequest.blood_type}</p>
                 <p><strong>Urgency:</strong> {selectedRequest.urgency}</p>
                 <p><strong>Purpose:</strong> {selectedRequest.purpose}</p>
-                <p><strong>Amount:</strong> {selectedRequest.amount} bags</p>
+                <p><strong>Units:</strong> {selectedRequest.amount} bags</p>
                 <hr />
                 <!-- Display Rejection Reason if Denied -->
                 {#if selectedRequest.status === 'rejected'}
@@ -924,7 +924,7 @@
                     </select>
                   </div>
                   <div class="mb-3">
-                    <label class="form-label">Amount (per bag)</label>
+                    <label class="form-label">Units (per bag)</label>
                     <input
                       type="number"
                       bind:value={newRequest.amount}
