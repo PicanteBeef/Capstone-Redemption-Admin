@@ -678,7 +678,7 @@
                     <!-- Requestor Details (Only for Blood Out) -->
                     {#if selectedTransaction.transactionType === 'Blood Out'}
                       <hr />
-                      <h6>Requestor Details</h6>
+                      <h6>Patient Details</h6>
                       <div class="row">
                         <div class="col-md-4 text-center">
                           <!-- Requestor Image -->
